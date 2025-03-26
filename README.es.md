@@ -3,7 +3,7 @@
 SDK oficial en PHP para la API de TronZap.
 Este SDK permite integrar fácilmente los servicios de TronZap para alquilar energía TRON y gestionar billeteras.
 
-TronZap.com permite comprar energía TRX, reduciendo significativamente las comisiones en transferencias de USDT (TRC20).
+TronZap.com permite [comprar energía TRON](https://tronzap.com/), reduciendo significativamente las comisiones en transferencias de USDT (TRC20).
 
 ## Instalación
 
