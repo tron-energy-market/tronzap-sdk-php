@@ -1,11 +1,13 @@
 # TronZap PHP SDK
 
-[English](README.md) | [Español](README.es.md) | [Português](README.pt-br.md) | [Русский](README.ru.md)
+**[English](README.md)** | [Español](README.es.md) | [Português](README.pt-br.md) | [Русский](README.ru.md)
 
 Official PHP SDK for the TronZap API.
-This SDK allows you to easily integrate with TronZap services for TRON energy rental and wallet management.
+This SDK allows you to easily integrate with TronZap services for TRON energy rental.
 
 TronZap.com allows you to [buy TRON energy](https://tronzap.com/), making USDT (TRC20) transfers cheaper by significantly reducing transaction fees.
+
+👉 [Register for an API key](https://tronzap.com) to start using TronZap API and integrate it via the SDK.
 
 ## Installation
 
@@ -18,7 +20,7 @@ composer require tron-energy-market/tronzap-sdk-php
 ## Requirements
 
 - PHP 7.4 or higher
-- JSON extension
+- php-json extension
 
 ## Usage
 
@@ -73,7 +75,7 @@ The SDK will throw a `TronZapException` if an API error occurs. Common error cod
 
 - 1: Authentication error: Check your API token and ensure your signature is calculated correctly
 - 2: Invalid service or parameters: Check that the service name and parameters are correct
-- 5: Wallet not found: Verify the wallet address or contact support if you believe this is an error
+- 5: Internal wallet not found: contact support
 - 6: Insufficient funds: Add funds to your account or reduce the amount of energy you're requesting
 - 10: Invalid TRON address: Check the TRON address format. It should be a valid 34-character TRON address
 - 11: Invalid energy amount: Ensure the requested energy amount is valid
@@ -81,6 +83,7 @@ The SDK will throw a `TronZapException` if an API error occurs. Common error cod
 - 20: Transaction not found: Verify the transaction ID or external ID is correct
 - 24: Address not activated: Activate the address first by making an address activation transaction
 - 25: Address already activated: The address is already activated. No action needed
+- 500: Internal Server Error
 
 ## Testing
 

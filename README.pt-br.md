@@ -1,9 +1,13 @@
 # SDK PHP para TronZap
 
+[English](README.md) | [Español](README.es.md) | **[Português](README.pt-br.md)** | [Русский](README.ru.md)
+
 SDK oficial em PHP para a API do TronZap.
-Este SDK permite integrar facilmente os serviços TronZap para aluguel de energia TRON e gerenciamento de carteiras.
+Este SDK permite integrar facilmente os serviços TronZap para aluguel de energia TRON.
 
 TronZap.com permite [comprar energia TRON](https://tronzap.com/), reduzindo significativamente as taxas nas transferências de USDT (TRC20).
+
+👉 [Registre-se para obter uma chave API](https://tronzap.com) para começar a usar a API TronZap e integrá-la através do SDK.
 
 ## Instalação
 
@@ -16,8 +20,7 @@ composer require tron-energy-market/tronzap-sdk-php
 ## Requisitos
 
 - PHP 7.4 ou superior
-- Cliente HTTP Guzzle
-- Extensão JSON
+- php-json extensão
 
 ## Uso
 
@@ -72,7 +75,7 @@ O SDK lança uma exceção `TronZapException` em caso de erros da API. Códigos 
 
 - 1: Erro de autenticação: Verifique seu token API e assinatura
 - 2: Serviço ou parâmetros inválidos: Verifique o nome do serviço e parâmetros
-- 5: Carteira não encontrada: Verifique o endereço ou contate o suporte
+- 5: Carteira interna não encontrada: contate o suporte
 - 6: Saldo insuficiente: Adicione fundos ou reduza a quantidade solicitada de energia
 - 10: Endereço TRON inválido: Verifique o formato do endereço (34 caracteres)
 - 11: Quantidade de energia inválida
@@ -80,6 +83,7 @@ O SDK lança uma exceção `TronZapException` em caso de erros da API. Códigos 
 - 20: Transação não encontrada: Verifique o ID da transação ou ID externo
 - 24: Endereço não ativado: Ative primeiro o endereço
 - 25: Endereço já ativado
+- 500: Internal Server Error
 
 ## Testes
 

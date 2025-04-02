@@ -1,9 +1,13 @@
 # SDK PHP para TronZap
 
+[English](README.md) | **[Español](README.es.md)** | [Português](README.pt-br.md) | [Русский](README.ru.md)
+
 SDK oficial en PHP para la API de TronZap.
-Este SDK permite integrar fácilmente los servicios de TronZap para alquilar energía TRON y gestionar billeteras.
+Este SDK permite integrar fácilmente los servicios de TronZap para alquilar energía TRON.
 
 TronZap.com permite [comprar energía TRON](https://tronzap.com/), reduciendo significativamente las comisiones en transferencias de USDT (TRC20).
+
+👉 [Regístrate para obtener una clave API](https://tronzap.com) para comenzar a usar la API de TronZap e integrarla a través del SDK.
 
 ## Instalación
 
@@ -16,8 +20,7 @@ composer require tron-energy-market/tronzap-sdk-php
 ## Requisitos
 
 - PHP 7.4 o superior
-- Cliente HTTP Guzzle
-- Extensión JSON
+- php-json extensión
 
 ## Uso
 
@@ -72,7 +75,7 @@ El SDK lanzará una excepción `TronZapException` en caso de errores de la API. 
 
 - 1: Error de autenticación: Revisa tu token API y firma
 - 2: Servicio o parámetros inválidos: Revisa el nombre del servicio y parámetros
-- 5: Billetera no encontrada: Verifica la dirección o contacta soporte
+- 5: Billetera interna no encontrada: contacta soporte
 - 6: Fondos insuficientes: Añade fondos o reduce la cantidad solicitada de energía
 - 10: Dirección TRON inválida: Revisa el formato de dirección (34 caracteres)
 - 11: Cantidad de energía inválida
@@ -80,6 +83,7 @@ El SDK lanzará una excepción `TronZapException` en caso de errores de la API. 
 - 20: Transacción no encontrada: Verifica el ID de transacción o externo
 - 24: Dirección no activada: Activa primero la dirección
 - 25: Dirección ya activada
+- 500: Internal Server Error
 
 ## Pruebas
 

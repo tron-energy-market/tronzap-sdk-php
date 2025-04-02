@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * TronZap SDK Client
+ *
+ * This module provides a PHP client for interacting with the TronZap API
+ * to purchase TRX energy for low-cost USDT transfers.
+ */
+
 namespace TronZap;
 
 use TronZap\Exception\TronZapException;
