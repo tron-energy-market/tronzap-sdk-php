@@ -46,7 +46,7 @@ try {
     $transaction = $client->createEnergyTransaction(
         'TRX_ADDRESS', // TRON wallet address
         32000,         // Energy amount
-        1,             // Duration (hours)
+        1,             // Duration (hours), can be 1 or 24
         'my-tx-id',    // External ID (optional)
         true          // Activate address (optional)
     );
@@ -73,17 +73,17 @@ try {
 
 The SDK will throw a `TronZapException` if an API error occurs. Common error codes include:
 
-- 1: Authentication error: Check your API token and ensure your signature is calculated correctly
-- 2: Invalid service or parameters: Check that the service name and parameters are correct
-- 5: Internal wallet not found: contact support
-- 6: Insufficient funds: Add funds to your account or reduce the amount of energy you're requesting
-- 10: Invalid TRON address: Check the TRON address format. It should be a valid 34-character TRON address
-- 11: Invalid energy amount: Ensure the requested energy amount is valid
-- 12: Invalid duration: Check that the duration parameter is valid
-- 20: Transaction not found: Verify the transaction ID or external ID is correct
-- 24: Address not activated: Activate the address first by making an address activation transaction
-- 25: Address already activated: The address is already activated. No action needed
-- 500: Internal Server Error
+- 1: Authentication error: Check your API token and ensure your signature is calculated correctly.
+- 2: Invalid service or parameters: Check that the service name and parameters are correct.
+- 5: Internal wallet not found: contact support.
+- 6: Insufficient funds: Add funds to your account or reduce the amount of energy you're requesting.
+- 10: Invalid TRON address: Check the TRON address format. It should be a valid 34-character TRON address.
+- 11: Invalid energy amount: Ensure the requested energy amount is valid.
+- 12: Invalid duration: Check that the duration parameter is valid. Can be 1 or 24 hours.
+- 20: Transaction not found: Verify the transaction ID or external ID is correct.
+- 24: Address not activated: Activate the address first by making an address activation transaction.
+- 25: Address already activated: The address is already activated. No action needed.
+- 500: Internal Server Error.
 
 ## Testing
 

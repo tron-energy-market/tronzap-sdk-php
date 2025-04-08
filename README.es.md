@@ -46,7 +46,7 @@ try {
     $transaction = $client->createEnergyTransaction(
         'TRX_ADDRESS', // dirección de billetera TRON
         32000,         // cantidad de energía
-        1,             // duración (horas)
+        1,             // duración (horas), 1 o 24
         'my-tx-id',    // ID externo (opcional)
         true          // activar dirección (opcional)
     );
@@ -73,17 +73,17 @@ try {
 
 El SDK lanzará una excepción `TronZapException` en caso de errores de la API. Códigos comunes de error:
 
-- 1: Error de autenticación: Revisa tu token API y firma
-- 2: Servicio o parámetros inválidos: Revisa el nombre del servicio y parámetros
-- 5: Billetera interna no encontrada: contacta soporte
-- 6: Fondos insuficientes: Añade fondos o reduce la cantidad solicitada de energía
-- 10: Dirección TRON inválida: Revisa el formato de dirección (34 caracteres)
-- 11: Cantidad de energía inválida
-- 12: Duración inválida
-- 20: Transacción no encontrada: Verifica el ID de transacción o externo
-- 24: Dirección no activada: Activa primero la dirección
-- 25: Dirección ya activada
-- 500: Internal Server Error
+- 1: Error de autenticación: Revisa tu token API y firma.
+- 2: Servicio o parámetros inválidos: Revisa el nombre del servicio y parámetros.
+- 5: Billetera interna no encontrada: contacta soporte.
+- 6: Fondos insuficientes: Añade fondos o reduce la cantidad solicitada de energía.
+- 10: Dirección TRON inválida: Revisa el formato de dirección (34 caracteres).
+- 11: Cantidad de energía inválida.
+- 12: Duración inválida. Valores posibles 1 o 24 horas.
+- 20: Transacción no encontrada: Verifica el ID de transacción o externo.
+- 24: Dirección no activada: Activa primero la dirección.
+- 25: Dirección ya activada.
+- 500: Internal Server Error.
 
 ## Pruebas
 

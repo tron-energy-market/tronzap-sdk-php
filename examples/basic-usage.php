@@ -24,8 +24,8 @@ try {
     // Create an energy transaction
     $energyTransaction = $client->createEnergyTransaction(
         'TRX_ADDRESS', // Replace with actual TRON address
-        32000, // Energy amount
-        1,     // Duration (hours)
+        65150, // Energy amount, from 32000
+        1,     // Duration (hours), possible values: 1 or 24 hours
         'my-external-id-' . time(), // External ID
         false  // Don't activate address
     );

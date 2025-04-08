@@ -46,7 +46,7 @@ try {
     $transaction = $client->createEnergyTransaction(
         'TRX_ADDRESS', // endereço da carteira TRON
         32000,         // quantidade de energia
-        1,             // duração (horas)
+        1,             // duração (horas), 1 ou 24
         'my-tx-id',    // ID externo (opcional)
         true          // ativar endereço (opcional)
     );
@@ -79,7 +79,7 @@ O SDK lança uma exceção `TronZapException` em caso de erros da API. Códigos 
 - 6: Saldo insuficiente: Adicione fundos ou reduza a quantidade solicitada de energia
 - 10: Endereço TRON inválido: Verifique o formato do endereço (34 caracteres)
 - 11: Quantidade de energia inválida
-- 12: Duração inválida
+- 12: Duração inválida. Valores possíveis 1 ou 24 horas.
 - 20: Transação não encontrada: Verifique o ID da transação ou ID externo
 - 24: Endereço não ativado: Ative primeiro o endereço
 - 25: Endereço já ativado
