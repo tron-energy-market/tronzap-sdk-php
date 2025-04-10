@@ -26,6 +26,12 @@ class ClientTest extends TestCase
         $this->assertTrue(method_exists($this->client, 'getServices'));
     }
 
+    public function testEstimateEnergy(): void
+    {
+        // This is a placeholder for a real test that would mock API responses
+        $this->assertTrue(method_exists($this->client, 'estimateEnergy'));
+    }
+
     public function testCreateEnergyTransaction(): void
     {
         // This is a placeholder for a real test that would mock API responses

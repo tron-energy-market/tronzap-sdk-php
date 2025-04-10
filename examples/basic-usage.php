@@ -21,6 +21,16 @@ try {
     echo "\nAccount balance:\n";
     print_r($balance);
 
+    // Estimate energy cost
+    $estimate = $client->estimateEnergy('TRX_FROM_ADDRESS', 'TRX_TO_ADDRESS');
+    echo "\nEnergy estimate:\n";
+    print_r($estimate);
+
+    // Calculate energy cost
+    $calculate = $client->calculate('TRX_ADDRESS', 65150, 1);
+    echo "\nEnergy cost:\n";
+    print_r($calculate);
+
     // Create an energy transaction
     $energyTransaction = $client->createEnergyTransaction(
         'TRX_ADDRESS', // Replace with actual TRON address

@@ -42,13 +42,17 @@ try {
     $services = $client->getServices();
     print_r($services);
 
+    // Estimate energy amount for USDT transfer
+    $estimate = $client->estimateEnergy('FROM_TRX_ADDRESS', 'TO_TRX_ADDRESS', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t');
+    print_r($estimate);
+
     // Create an energy transaction
     $transaction = $client->createEnergyTransaction(
-        'TRX_ADDRESS', // TRON wallet address
-        32000,         // Energy amount
-        1,             // Duration (hours), can be 1 or 24
-        'my-tx-id',    // External ID (optional)
-        true          // Activate address (optional)
+        'TRX_ADDRESS',       // TRON wallet address
+        $estimate['energy'], // Energy amount
+        1,                   // Duration (hours), can be 1 or 24
+        'my-tx-id',          // External ID (optional)
+        true                 // Activate address (optional)
     );
     print_r($transaction);
 

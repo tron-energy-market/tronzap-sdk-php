@@ -65,11 +65,29 @@ class Client
     }
 
     /**
+     * Estimate energy cost
+     *
+     * @param string $fromAddress TRON wallet address
+     * @param string $toAddress TRON wallet address
+     * @param string $contractAddress TRON contract address, optional. Default is TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+     * @return array Estimate result
+     * @throws TronZapException
+     */
+    public function estimateEnergy(string $fromAddress, string $toAddress, string $contractAddress = null): array
+    {
+        return $this->request('POST', '/v1/estimate-energy', [
+            'from_address' => $fromAddress,
+            'to_address' => $toAddress,
+            'contract_address' => $contractAddress
+        ]);
+    }
+
+    /**
      * Calculate cost for energy purchase
      *
      * @param string $address TRON wallet address
      * @param int $energy Amount of energy to purchase
-     * @param int $duration Duration in hours (currently only 1 is supported)
+     * @param int $duration Duration in hours (1 or 24)
      * @return array Calculation result
      * @throws TronZapException
      */
@@ -87,7 +105,7 @@ class Client
      *
      * @param string $address TRON wallet address
      * @param int $energyAmount Amount of energy to purchase
-     * @param int $duration Duration in hours (currently only 1 is supported)
+     * @param int $duration Duration in hours (1 or 24)
      * @param string|null $externalId Optional external transaction ID
      * @param bool $activateAddress Whether to activate the address
      * @return array Transaction data
@@ -178,7 +196,7 @@ class Client
      * @return array API response
      * @throws TronZapException
      */
-    private function request(string $method, string $endpoint, array $params): array
+    public function request(string $method, string $endpoint, array $params): array
     {
         $requestBody = json_encode($params);
         $signature = hash('sha256', $requestBody . $this->apiSecret);
