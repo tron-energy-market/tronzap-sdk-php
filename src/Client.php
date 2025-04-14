@@ -165,15 +165,22 @@ class Client
     /**
      * Check transaction status
      *
-     * @param string $transactionId Transaction ID
+     * @param string|null $id Internal transaction ID
+     * @param string|null $externalId External transaction ID
      * @return array Transaction status data
      * @throws TronZapException
      */
-    public function checkTransaction(string $transactionId): array
+    public function checkTransaction(?string $id = null, ?string $externalId = null): array
     {
-        return $this->request('POST', '/v1/transaction/check', [
-            'transaction_id' => $transactionId
-        ]);
+        $params = [];
+        if ($id) {
+            $params['id'] = $id;
+        }
+        if ($externalId) {
+            $params['external_id'] = $externalId;
+        }
+
+        return $this->request('POST', '/v1/transaction/check', $params);
     }
 
     /**

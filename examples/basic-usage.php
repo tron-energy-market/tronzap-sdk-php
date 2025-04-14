@@ -43,7 +43,7 @@ try {
     print_r($energyTransaction);
 
     // Check transaction status
-    $transactionId = $energyTransaction['result']['transaction_id'] ?? '';
+    $transactionId = $energyTransaction['result']['id'] ?? '';
     if ($transactionId) {
         $transactionStatus = $client->checkTransaction($transactionId);
         echo "\nTransaction status:\n";

@@ -57,7 +57,7 @@ try {
     print_r($transaction);
 
     // Check transaction status
-    $status = $client->checkTransaction($transaction['transaction_id']);
+    $status = $client->checkTransaction($transaction['id']);
     print_r($status);
 } catch (TronZapException $e) {
     echo "Error: " . $e->getMessage() . " (Code: " . $e->getCode() . ")\n";
