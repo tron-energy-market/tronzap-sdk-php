@@ -1,4 +1,5 @@
-# PHP SDK для TronZap
+# Покупка энергии Tron черезе API
+## PHP SDK от TronZap.com
 
 [English](README.md) | [Español](README.es.md) | [Português](README.pt-br.md) | **[Русский](README.ru.md)**
 
