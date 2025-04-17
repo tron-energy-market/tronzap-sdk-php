@@ -18,6 +18,8 @@ You can install the package via composer:
 composer require tron-energy-market/tronzap-sdk-php
 ```
 
+Check out at Packagist: https://packagist.org/packages/tron-energy-market/tronzap-sdk-php
+
 ## Requirements
 
 - PHP 7.4 or higher
