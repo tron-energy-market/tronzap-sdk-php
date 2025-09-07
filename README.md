@@ -23,7 +23,6 @@ Check out at Packagist: https://packagist.org/packages/tron-energy-market/tronza
 ## Requirements
 
 - PHP 7.4 or higher
-- php-json extension
 
 ## Usage
 

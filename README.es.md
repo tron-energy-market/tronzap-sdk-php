@@ -21,7 +21,6 @@ composer require tron-energy-market/tronzap-sdk-php
 ## Requisitos
 
 - PHP 7.4 o superior
-- php-json extensión
 
 ## Uso
 
