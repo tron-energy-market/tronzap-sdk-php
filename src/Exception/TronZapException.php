@@ -36,4 +36,10 @@ class TronZapException extends \Exception
 
     // Address already activated - The address is already activated. No action needed.
     public const ADDRESS_ALREADY_ACTIVATED = 25;
+
+    // AML check not found - Re-run the AML check or confirm the ID.
+    public const AML_CHECK_NOT_FOUND = 30;
+
+    // Service not available - The service is temporarily unavailable.
+    public const SERVICE_NOT_AVAILABLE = 35;
 }

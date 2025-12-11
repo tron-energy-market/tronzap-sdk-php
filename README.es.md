@@ -56,9 +56,29 @@ try {
     );
     print_r($transaction);
 
+    // Comprar ancho de banda
+    $bandwidth = $client->createBandwidthTransaction(
+        'TRX_ADDRESS',   // dirección TRON
+        1000,            // cantidad de ancho de banda
+        'bandwidth-1'    // ID externo (opcional)
+    );
+    print_r($bandwidth);
+
     // Consultar estado de transacción
     $status = $client->checkTransaction($transaction['id']);
     print_r($status);
+
+    // Crear verificación AML para una dirección
+    $amlCheck = $client->createAmlCheck(
+        'address',
+        'TRX',
+        'TRX_ADDRESS'
+    );
+    print_r($amlCheck);
+
+    // Consultar estado AML
+    $amlStatus = $client->checkAmlStatus($amlCheck['id']);
+    print_r($amlStatus);
 } catch (TronZapException $e) {
     echo "Error: " . $e->getMessage() . " (Código: " . $e->getCode() . ")\n";
 }
@@ -69,9 +89,14 @@ try {
 - `getServices()` - Obtiene lista de servicios disponibles y precios
 - `getBalance()` - Obtiene saldo actual de la cuenta
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Crea una transacción para compra de energía
+- `createBandwidthTransaction(address, amount, externalId)` - Crea una transacción para compra de ancho de banda
 - `createAddressActivationTransaction(address, externalId)` - Crea una transacción para activación de dirección
 - `checkTransaction(transactionId)` - Consulta el estado de una transacción
 - `getDirectRechargeInfo()` - Obtiene información sobre recargas directas
+- `getAmlServices()` - Obtiene servicios AML y sus precios
+- `createAmlCheck(type, network, address, hash, direction)` - Crea una nueva verificación AML
+- `checkAmlStatus(id)` - Consulta el estado de una verificación AML
+- `getAmlHistory(page, perPage, status)` - Obtiene historial de verificaciones AML
 
 ## Gestión de errores
 
@@ -87,6 +112,8 @@ El SDK lanzará una excepción `TronZapException` en caso de errores de la API. 
 - 20: Transacción no encontrada: Verifica el ID de transacción o externo.
 - 24: Dirección no activada: Activa primero la dirección.
 - 25: Dirección ya activada.
+- 30: Verificación AML no encontrada: Repite la verificación o confirma el ID.
+- 35: Servicio no disponible: El servicio está temporalmente fuera de línea.
 - 500: Internal Server Error.
 
 ## Pruebas

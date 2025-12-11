@@ -54,6 +54,17 @@ class Client
     }
 
     /**
+     * Get AML services
+     *
+     * @return array AML services data
+     * @throws TronZapException
+     */
+    public function getAmlServices(): array
+    {
+        return $this->request('POST', '/v1/aml-checks', []);
+    }
+
+    /**
      * Get account balance
      *
      * @return array Balance data
@@ -123,6 +134,7 @@ class Client
             'params' => [
                 'address' => $address,
                 'energy_amount' => $energyAmount,
+                'amount' => $energyAmount,
                 'duration' => $duration
             ]
         ];
@@ -130,6 +142,36 @@ class Client
         if ($activateAddress) {
             $params['params']['activate_address'] = true;
         }
+
+        if ($externalId) {
+            $params['external_id'] = $externalId;
+        }
+
+        return $this->request('POST', '/v1/transaction/new', $params);
+    }
+
+    /**
+     * Create a new transaction for bandwidth purchase
+     *
+     * @param string $address TRON wallet address
+     * @param int $amount Amount of bandwidth to purchase
+     * @param string|null $externalId Optional external transaction ID
+     * @return array Transaction data
+     * @throws TronZapException
+     */
+    public function createBandwidthTransaction(
+        string $address,
+        int $amount,
+        ?string $externalId = null
+    ): array {
+        $params = [
+            'service' => 'bandwidth',
+            'params' => [
+                'address' => $address,
+                'amount' => $amount,
+                'duration' => 1
+            ]
+        ];
 
         if ($externalId) {
             $params['external_id'] = $externalId;
@@ -160,6 +202,78 @@ class Client
         }
 
         return $this->request('POST', '/v1/transaction/new', $params);
+    }
+
+    /**
+     * Create a new AML check
+     *
+     * @param string $type AML service type: address or hash
+     * @param string $network Network code (e.g. TRX, BTC, ETH)
+     * @param string $address Wallet address
+     * @param string|null $hash Transaction hash when type=hash
+     * @param string|null $direction Transaction direction (deposit or withdrawal) when type=hash
+     * @return array AML check data
+     * @throws TronZapException
+     */
+    public function createAmlCheck(
+        string $type,
+        string $network,
+        string $address,
+        ?string $hash = null,
+        ?string $direction = null
+    ): array {
+        $params = [
+            'type' => $type,
+            'network' => $network,
+            'address' => $address
+        ];
+
+        if ($hash !== null) {
+            $params['hash'] = $hash;
+        }
+
+        if ($direction !== null) {
+            $params['direction'] = $direction;
+        }
+
+        return $this->request('POST', '/v1/aml-checks/new', $params);
+    }
+
+    /**
+     * Check AML status
+     *
+     * @param string $id AML check ID
+     * @return array AML check status
+     * @throws TronZapException
+     */
+    public function checkAmlStatus(string $id): array
+    {
+        return $this->request('POST', '/v1/aml-checks/check', [
+            'id' => $id
+        ]);
+    }
+
+    /**
+     * Get AML history
+     *
+     * @param int $page Page number
+     * @param int $perPage Items per page
+     * @param string|null $status Filter by status (pending, processing, completed, failed)
+     * @return array AML history data
+     * @throws TronZapException
+     */
+    public function getAmlHistory(int $page = 1, int $perPage = 10, ?string $status = null): array
+    {
+        $params = [
+            'page' => $page,
+            'per_page' => $perPage
+        ];
+
+        if ($status !== null) {
+            $params['status'] = $status;
+        }
+
+        return $this->request('POST', '/v1/aml-checks/history', $params);
     }
 
     /**

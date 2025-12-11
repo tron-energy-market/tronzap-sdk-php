@@ -26,6 +26,11 @@ class ClientTest extends TestCase
         $this->assertTrue(method_exists($this->client, 'getServices'));
     }
 
+    public function testGetAmlServices(): void
+    {
+        $this->assertTrue(method_exists($this->client, 'getAmlServices'));
+    }
+
     public function testEstimateEnergy(): void
     {
         // This is a placeholder for a real test that would mock API responses
@@ -38,6 +43,11 @@ class ClientTest extends TestCase
         $this->assertTrue(method_exists($this->client, 'createEnergyTransaction'));
     }
 
+    public function testCreateBandwidthTransaction(): void
+    {
+        $this->assertTrue(method_exists($this->client, 'createBandwidthTransaction'));
+    }
+
     public function testCreateAddressActivationTransaction(): void
     {
         // This is a placeholder for a real test that would mock API responses
@@ -48,6 +58,13 @@ class ClientTest extends TestCase
     {
         // This is a placeholder for a real test that would mock API responses
         $this->assertTrue(method_exists($this->client, 'checkTransaction'));
+    }
+
+    public function testAmlMethods(): void
+    {
+        $this->assertTrue(method_exists($this->client, 'createAmlCheck'));
+        $this->assertTrue(method_exists($this->client, 'checkAmlStatus'));
+        $this->assertTrue(method_exists($this->client, 'getAmlHistory'));
     }
 
     public function testGetBalance(): void

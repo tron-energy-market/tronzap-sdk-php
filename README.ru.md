@@ -56,9 +56,29 @@ try {
     );
     print_r($transaction);
 
+    // Покупка пропускной способности
+    $bandwidth = $client->createBandwidthTransaction(
+        'TRX_ADDRESS',   // адрес TRON
+        1000,            // объем bandwidth
+        'bandwidth-1'    // внешний ID (опционально)
+    );
+    print_r($bandwidth);
+
     // Проверка статуса транзакции
     $status = $client->checkTransaction($transaction['id']);
     print_r($status);
+
+    // Создание AML-проверки адреса
+    $amlCheck = $client->createAmlCheck(
+        'address',
+        'TRX',
+        'TRX_ADDRESS'
+    );
+    print_r($amlCheck);
+
+    // Проверка статуса AML
+    $amlStatus = $client->checkAmlStatus($amlCheck['id']);
+    print_r($amlStatus);
 } catch (TronZapException $e) {
     echo "Ошибка: " . $e->getMessage() . " (Код: " . $e->getCode() . ")\n";
 }
@@ -69,9 +89,14 @@ try {
 - `getServices()` - Получение списка доступных сервисов и цен
 - `getBalance()` - Получение текущего баланса аккаунта
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Создание транзакции на покупку энергии
+- `createBandwidthTransaction(address, amount, externalId)` - Создание транзакции на покупку bandwidth
 - `createAddressActivationTransaction(address, externalId)` - Создание транзакции для активации адреса
 - `checkTransaction(transactionId)` - Проверка статуса транзакции
 - `getDirectRechargeInfo()` - Получение информации о прямом пополнении
+- `getAmlServices()` - Получение доступных AML-сервисов и цен
+- `createAmlCheck(type, network, address, hash, direction)` - Создание AML-проверки
+- `checkAmlStatus(id)` - Получение статуса AML-проверки
+- `getAmlHistory(page, perPage, status)` - История AML-проверок
 
 ## Обработка ошибок
 
@@ -87,6 +112,8 @@ SDK генерирует исключения `TronZapException` при ошиб
 - 20: Транзакция не найдена: Проверьте ID транзакции или внешний ID.
 - 24: Адрес не активирован: Сначала активируйте адрес.
 - 25: Адрес уже активирован.
+- 30: AML-проверка не найдена: повторите проверку или подтвердите ID.
+- 35: Сервис временно недоступен.
 - 500: Internal Server Error.
 
 ## Тестирование

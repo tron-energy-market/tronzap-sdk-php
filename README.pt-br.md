@@ -56,9 +56,29 @@ try {
     );
     print_r($transaction);
 
+    // Comprar banda larga (bandwidth)
+    $bandwidth = $client->createBandwidthTransaction(
+        'TRX_ADDRESS',   // endereço TRON
+        1000,            // quantidade de bandwidth
+        'bandwidth-1'    // ID externo (opcional)
+    );
+    print_r($bandwidth);
+
     // Verificar status da transação
     $status = $client->checkTransaction($transaction['id']);
     print_r($status);
+
+    // Criar verificação AML para um endereço
+    $amlCheck = $client->createAmlCheck(
+        'address',
+        'TRX',
+        'TRX_ADDRESS'
+    );
+    print_r($amlCheck);
+
+    // Consultar status AML
+    $amlStatus = $client->checkAmlStatus($amlCheck['id']);
+    print_r($amlStatus);
 } catch (TronZapException $e) {
     echo "Erro: " . $e->getMessage() . " (Código: " . $e->getCode() . ")\n";
 }
@@ -69,9 +89,14 @@ try {
 - `getServices()` - Obter lista de serviços disponíveis e preços
 - `getBalance()` - Obter saldo atual da conta
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Criar transação para compra de energia
+- `createBandwidthTransaction(address, amount, externalId)` - Criar transação para compra de bandwidth
 - `createAddressActivationTransaction(address, externalId)` - Criar transação para ativação de endereço
 - `checkTransaction(transactionId)` - Verificar status da transação
 - `getDirectRechargeInfo()` - Obter informações sobre recargas diretas
+- `getAmlServices()` - Obter serviços AML e preços
+- `createAmlCheck(type, network, address, hash, direction)` - Criar nova verificação AML
+- `checkAmlStatus(id)` - Consultar status de verificação AML
+- `getAmlHistory(page, perPage, status)` - Listar histórico de verificações AML
 
 ## Tratamento de erros
 
@@ -87,6 +112,8 @@ O SDK lança uma exceção `TronZapException` em caso de erros da API. Códigos 
 - 20: Transação não encontrada: Verifique o ID da transação ou ID externo
 - 24: Endereço não ativado: Ative primeiro o endereço
 - 25: Endereço já ativado
+- 30: Verificação AML não encontrada: Repita a verificação ou confirme o ID
+- 35: Serviço não disponível: O serviço está temporariamente indisponível
 - 500: Internal Server Error
 
 ## Testes

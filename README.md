@@ -58,9 +58,29 @@ try {
     );
     print_r($transaction);
 
+    // Buy bandwidth
+    $bandwidth = $client->createBandwidthTransaction(
+        'TRX_ADDRESS',   // TRON wallet address
+        1000,            // Bandwidth amount
+        'bandwidth-1'    // External ID (optional)
+    );
+    print_r($bandwidth);
+
     // Check transaction status
     $status = $client->checkTransaction($transaction['id']);
     print_r($status);
+
+    // Create AML check for an address
+    $amlCheck = $client->createAmlCheck(
+        'address',
+        'TRX',
+        'TRX_ADDRESS'
+    );
+    print_r($amlCheck);
+
+    // Check AML status
+    $amlStatus = $client->checkAmlStatus($amlCheck['id']);
+    print_r($amlStatus);
 } catch (TronZapException $e) {
     echo "Error: " . $e->getMessage() . " (Code: " . $e->getCode() . ")\n";
 }
@@ -71,9 +91,14 @@ try {
 - `getServices()` - Get list of available services and prices
 - `getBalance()` - Get current account balance
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Create a transaction for energy purchase
+- `createBandwidthTransaction(address, amount, externalId)` - Create a transaction for bandwidth purchase
 - `createAddressActivationTransaction(address, externalId)` - Create a transaction for address activation
-- `checkTransaction(transactionId)` - Check status of a transaction
+- `checkTransaction(transactionId, externalId)` - Check status of a transaction
 - `getDirectRechargeInfo()` - Get direct recharge service information
+- `getAmlServices()` - Get AML services and pricing
+- `createAmlCheck(type, network, address, hash, direction)` - Create a new AML check
+- `checkAmlStatus(id)` - Get status for an AML check
+- `getAmlHistory(page, perPage, status)` - Get AML checks history
 
 ## Error Handling
 
@@ -89,6 +114,8 @@ The SDK will throw a `TronZapException` if an API error occurs. Common error cod
 - 20: Transaction not found: Verify the transaction ID or external ID is correct.
 - 24: Address not activated: Activate the address first by making an address activation transaction.
 - 25: Address already activated: The address is already activated. No action needed.
+- 30: AML check not found: Re-run the AML check or confirm the ID.
+- 35: Service not available: The service is temporarily unavailable for use.
 - 500: Internal Server Error.
 
 ## Testing

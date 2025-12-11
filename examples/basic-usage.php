@@ -42,8 +42,17 @@ try {
     echo "\nEnergy transaction created:\n";
     print_r($energyTransaction);
 
+    // Create a bandwidth transaction
+    $bandwidthTransaction = $client->createBandwidthTransaction(
+        'TRX_ADDRESS',
+        1000,
+        'bandwidth-' . time()
+    );
+    echo "\nBandwidth transaction created:\n";
+    print_r($bandwidthTransaction);
+
     // Check transaction status
-    $transactionId = $energyTransaction['result']['id'] ?? '';
+    $transactionId = $energyTransaction['id'] ?? '';
     if ($transactionId) {
         $transactionStatus = $client->checkTransaction($transactionId);
         echo "\nTransaction status:\n";
@@ -57,6 +66,22 @@ try {
     );
     echo "\nAddress activation transaction created:\n";
     print_r($activationTransaction);
+
+    // Create AML check
+    $amlCheck = $client->createAmlCheck(
+        'address',
+        'TRX',
+        'TRX_ADDRESS'
+    );
+    echo "\nAML check created:\n";
+    print_r($amlCheck);
+
+    // Check AML status
+    if (isset($amlCheck['id'])) {
+        $amlStatus = $client->checkAmlStatus($amlCheck['id']);
+        echo "\nAML check status:\n";
+        print_r($amlStatus);
+    }
 
 } catch (TronZapException $e) {
     echo "Error: " . $e->getMessage() . " (Code: " . $e->getCode() . ")\n";
