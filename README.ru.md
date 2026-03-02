@@ -100,21 +100,90 @@ try {
 
 ## Обработка ошибок
 
-SDK генерирует исключения `TronZapException` при ошибках API. Основные коды ошибок:
+SDK использует иерархию исключений для точной обработки ошибок:
 
-- 1: Ошибка аутентификации: Проверьте API-токен и правильность подписи.
-- 2: Некорректный сервис или параметры: Проверьте название сервиса и параметры.
-- 5: Внутренний кошелек не найден: обратитесь в поддержку.
-- 6: Недостаточно средств: Пополните баланс или уменьшите запрашиваемое количество энергии.
-- 10: Некорректный адрес TRON: Проверьте формат адреса (34 символа).
-- 11: Некорректное количество энергии.
-- 12: Некорректная длительность. Возможные значения 1 или 24 часа.
-- 20: Транзакция не найдена: Проверьте ID транзакции или внешний ID.
-- 24: Адрес не активирован: Сначала активируйте адрес.
-- 25: Адрес уже активирован.
-- 30: AML-проверка не найдена: повторите проверку или подтвердите ID.
-- 35: Сервис временно недоступен.
-- 500: Internal Server Error.
+```
+TronZapException
+├── ApiException             — ошибки API (code != 0 в ответе)
+├── NetworkException         — сетевые ошибки
+│   ├── ConnectionException  — невозможно подключиться к серверу
+│   ├── TimeoutException     — превышено время ожидания
+│   └── SslException         — ошибки SSL/TLS
+└── HttpException            — HTTP-ответы с кодом не 2xx
+    ├── RateLimitException   — HTTP 429 Too Many Requests
+    ├── UnauthorizedException — HTTP 401/403
+    └── ServerException      — HTTP 5xx
+```
+
+### Пример
+
+```php
+use TronZap\Client as TronZapClient;
+use TronZap\Exception\ApiException;
+use TronZap\Exception\ConnectionException;
+use TronZap\Exception\HttpException;
+use TronZap\Exception\NetworkException;
+use TronZap\Exception\RateLimitException;
+use TronZap\Exception\ServerException;
+use TronZap\Exception\SslException;
+use TronZap\Exception\TimeoutException;
+use TronZap\Exception\TronZapException;
+use TronZap\Exception\UnauthorizedException;
+
+$client = new TronZapClient('ваш_api_token', 'ваш_api_secret');
+
+try {
+    $transaction = $client->createEnergyTransaction('TRX_ADDRESS', 65000, 1);
+} catch (ApiException $e) {
+    // Ошибка API (неверные параметры, недостаточно средств и т.д.)
+    echo "Ошибка API [{$e->getCode()}]: {$e->getMessage()}\n";
+
+    // Ключ-алиас ошибки, например "invalid_tron_address" или "invalid_tron_address.from_address"
+    if ($e->getErrorKey()) {
+        echo "Ключ ошибки: {$e->getErrorKey()}\n";
+    }
+
+    if ($e->getCode() === TronZapException::INVALID_TRON_ADDRESS) {
+        echo "Проверьте формат адреса TRON.\n";
+    }
+} catch (RateLimitException $e) {
+    echo "Слишком много запросов. Замедлите частоту обращений.\n";
+} catch (UnauthorizedException $e) {
+    echo "Неверный API-токен или подпись.\n";
+} catch (ServerException $e) {
+    echo "Ошибка сервера TronZap [{$e->getStatusCode()}].\n";
+} catch (HttpException $e) {
+    echo "HTTP-ошибка [{$e->getStatusCode()}]: {$e->getMessage()}\n";
+} catch (TimeoutException $e) {
+    echo "Превышено время ожидания запроса.\n";
+} catch (SslException $e) {
+    echo "Ошибка SSL: {$e->getMessage()}\n";
+} catch (ConnectionException $e) {
+    echo "Ошибка подключения: {$e->getMessage()}\n";
+} catch (NetworkException $e) {
+    echo "Сетевая ошибка: {$e->getMessage()}\n";
+} catch (TronZapException $e) {
+    echo "Ошибка [{$e->getCode()}]: {$e->getMessage()}\n";
+}
+```
+
+### Коды ошибок API
+
+| Код | Константа                       | Описание |
+|-----|---------------------------------|----------|
+| 1   | `AUTH_ERROR`                    | Ошибка аутентификации — неверный API-токен или подпись |
+| 2   | `INVALID_SERVICE_OR_PARAMS`    | Некорректный сервис или параметры |
+| 5   | `WALLET_NOT_FOUND`             | Внутренний кошелёк не найден. Обратитесь в поддержку. |
+| 6   | `INSUFFICIENT_FUNDS`           | Недостаточно средств |
+| 10  | `INVALID_TRON_ADDRESS`         | Некорректный адрес TRON |
+| 11  | `INVALID_ENERGY_AMOUNT`        | Некорректное количество энергии |
+| 12  | `INVALID_DURATION`             | Некорректная длительность |
+| 20  | `TRANSACTION_NOT_FOUND`        | Транзакция не найдена |
+| 24  | `ADDRESS_NOT_ACTIVATED`        | Адрес не активирован |
+| 25  | `ADDRESS_ALREADY_ACTIVATED`    | Адрес уже активирован |
+| 30  | `AML_CHECK_NOT_FOUND`          | AML-проверка не найдена |
+| 35  | `SERVICE_NOT_AVAILABLE`        | Сервис временно недоступен |
+| 500 | `INTERNAL_SERVER_ERROR`        | Внутренняя ошибка сервера — обратитесь в поддержку |
 
 ## Тестирование
 

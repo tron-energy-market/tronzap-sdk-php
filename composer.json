@@ -1,5 +1,6 @@
 {
     "name": "tron-energy-market/tronzap-sdk-php",
+    "version": "1.2.0",
     "description": "Official PHP SDK for TronZap.com. The TRON Energy API lets you buy energy to lower USDT (TRC20) transfer fees.",
     "type": "library",
     "license": "MIT",

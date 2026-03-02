@@ -102,21 +102,90 @@ try {
 
 ## Error Handling
 
-The SDK will throw a `TronZapException` if an API error occurs. Common error codes include:
+The SDK uses a hierarchy of exceptions for precise error handling:
 
-- 1: Authentication error: Check your API token and ensure your signature is calculated correctly.
-- 2: Invalid service or parameters: Check that the service name and parameters are correct.
-- 5: Internal wallet not found: contact support.
-- 6: Insufficient funds: Add funds to your account or reduce the amount of energy you're requesting.
-- 10: Invalid TRON address: Check the TRON address format. It should be a valid 34-character TRON address.
-- 11: Invalid energy amount: Ensure the requested energy amount is valid.
-- 12: Invalid duration: Check that the duration parameter is valid. Can be 1 or 24 hours.
-- 20: Transaction not found: Verify the transaction ID or external ID is correct.
-- 24: Address not activated: Activate the address first by making an address activation transaction.
-- 25: Address already activated: The address is already activated. No action needed.
-- 30: AML check not found: Re-run the AML check or confirm the ID.
-- 35: Service not available: The service is temporarily unavailable for use.
-- 500: Internal Server Error.
+```
+TronZapException
+├── ApiException             — API-level errors (response code != 0)
+├── NetworkException         — Network/connectivity errors
+│   ├── ConnectionException  — Could not connect to server
+│   ├── TimeoutException     — Request timed out
+│   └── SslException         — SSL/TLS errors
+└── HttpException            — HTTP non-2xx responses
+    ├── RateLimitException   — HTTP 429 Too Many Requests
+    ├── UnauthorizedException — HTTP 401/403
+    └── ServerException      — HTTP 5xx errors
+```
+
+### Example
+
+```php
+use TronZap\Client as TronZapClient;
+use TronZap\Exception\ApiException;
+use TronZap\Exception\ConnectionException;
+use TronZap\Exception\HttpException;
+use TronZap\Exception\NetworkException;
+use TronZap\Exception\RateLimitException;
+use TronZap\Exception\ServerException;
+use TronZap\Exception\SslException;
+use TronZap\Exception\TimeoutException;
+use TronZap\Exception\TronZapException;
+use TronZap\Exception\UnauthorizedException;
+
+$client = new TronZapClient('your_api_token', 'your_api_secret');
+
+try {
+    $transaction = $client->createEnergyTransaction('TRX_ADDRESS', 65000, 1);
+} catch (ApiException $e) {
+    // API-level error (invalid params, insufficient funds, etc.)
+    echo "API error [{$e->getCode()}]: {$e->getMessage()}\n";
+
+    // Error key alias, e.g. "invalid_tron_address" or "invalid_tron_address.from_address"
+    if ($e->getErrorKey()) {
+        echo "Error key: {$e->getErrorKey()}\n";
+    }
+
+    if ($e->getCode() === TronZapException::INVALID_TRON_ADDRESS) {
+        echo "Check the TRON address format.\n";
+    }
+} catch (RateLimitException $e) {
+    echo "Too many requests, please slow down.\n";
+} catch (UnauthorizedException $e) {
+    echo "Invalid API token or signature.\n";
+} catch (ServerException $e) {
+    echo "TronZap server error [{$e->getStatusCode()}].\n";
+} catch (HttpException $e) {
+    echo "HTTP error [{$e->getStatusCode()}]: {$e->getMessage()}\n";
+} catch (TimeoutException $e) {
+    echo "Request timed out.\n";
+} catch (SslException $e) {
+    echo "SSL error: {$e->getMessage()}\n";
+} catch (ConnectionException $e) {
+    echo "Connection failed: {$e->getMessage()}\n";
+} catch (NetworkException $e) {
+    echo "Network error: {$e->getMessage()}\n";
+} catch (TronZapException $e) {
+    echo "Error [{$e->getCode()}]: {$e->getMessage()}\n";
+}
+```
+
+### API Error Codes
+
+| Code | Constant                        | Description |
+|------|----------------------------------|-------------|
+| 1    | `AUTH_ERROR`                    | Authentication error – Invalid API token or signature |
+| 2    | `INVALID_SERVICE_OR_PARAMS`    | Invalid service or parameters |
+| 5    | `WALLET_NOT_FOUND`             | Internal wallet not found. Contact support. |
+| 6    | `INSUFFICIENT_FUNDS`           | Insufficient funds |
+| 10   | `INVALID_TRON_ADDRESS`         | Invalid TRON address |
+| 11   | `INVALID_ENERGY_AMOUNT`        | Invalid energy amount |
+| 12   | `INVALID_DURATION`             | Invalid duration |
+| 20   | `TRANSACTION_NOT_FOUND`        | Transaction not found |
+| 24   | `ADDRESS_NOT_ACTIVATED`        | Address not activated |
+| 25   | `ADDRESS_ALREADY_ACTIVATED`    | Address already activated |
+| 30   | `AML_CHECK_NOT_FOUND`          | AML check not found |
+| 35   | `SERVICE_NOT_AVAILABLE`        | Service not available |
+| 500  | `INTERNAL_SERVER_ERROR`        | Internal server error – Contact support |
 
 ## Testing
 

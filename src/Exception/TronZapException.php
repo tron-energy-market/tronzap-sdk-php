@@ -4,6 +4,7 @@ namespace TronZap\Exception;
 
 class TronZapException extends \Exception
 {
+    // API error codes
     // Internal server error - Contact support if this error persists.
     public const INTERNAL_SERVER_ERROR = 500;
 

@@ -9,7 +9,16 @@
 
 namespace TronZap;
 
+use TronZap\Exception\ApiException;
+use TronZap\Exception\ConnectionException;
+use TronZap\Exception\HttpException;
+use TronZap\Exception\NetworkException;
+use TronZap\Exception\RateLimitException;
+use TronZap\Exception\ServerException;
+use TronZap\Exception\SslException;
+use TronZap\Exception\TimeoutException;
 use TronZap\Exception\TronZapException;
+use TronZap\Exception\UnauthorizedException;
 
 class Client
 {
@@ -315,52 +324,108 @@ class Client
      * @param string $endpoint API endpoint
      * @param array $params Request parameters
      * @return array API response
-     * @throws TronZapException
+     * @throws NetworkException on cURL / connectivity errors
+     * @throws HttpException on non-2xx HTTP responses
+     * @throws ApiException on API-level errors (code != 0)
+     * @throws TronZapException on any other error
      */
     public function request(string $method, string $endpoint, array $params): array
     {
         $requestBody = json_encode($params);
         $signature = hash('sha256', $requestBody . $this->apiSecret);
 
-        try {
-            $ch = curl_init($this->baseUrl . $endpoint);
+        $ch = curl_init($this->baseUrl . $endpoint);
 
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $requestBody);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $this->apiToken,
-                'X-Signature: ' . $signature,
-                'Content-Type: application/json'
-            ]);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $requestBody);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $this->apiToken,
+            'X-Signature: ' . $signature,
+            'Content-Type: application/json'
+        ]);
 
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErrno = curl_errno($ch);
+        $curlError = curl_error($ch);
+        curl_close($ch);
 
-            if (curl_errno($ch)) {
-                throw new \Exception(curl_error($ch));
-            }
-
-            curl_close($ch);
-
-            $responseData = json_decode($response, true);
-
-            if (!isset($responseData['code']) || $responseData['code'] !== 0) {
-                throw new TronZapException(
-                    $responseData['error'] ?? 'Unknown API error',
-                    $responseData['code'] ?? 1
-                );
-            }
-
-            return $responseData['result'];
-        } catch (\Exception $e) {
-            if ($e instanceof TronZapException) {
-                throw $e;
-            } else {
-                throw new TronZapException('API request failed: ' . $e->getMessage());
-            }
+        // 1. Network-level errors
+        if ($curlErrno !== 0) {
+            throw self::buildNetworkException($curlErrno, $curlError);
         }
+
+        // 2. HTTP-level errors (non-2xx)
+        if ($httpCode < 200 || $httpCode >= 300) {
+            throw self::buildHttpException($httpCode, (string) $response);
+        }
+
+        // 3. JSON parsing
+        $responseData = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ServerException(
+                'Invalid JSON response: ' . json_last_error_msg(),
+                $httpCode,
+                (string) $response
+            );
+        }
+
+        // 4. API-level errors
+        if (!isset($responseData['code']) || $responseData['code'] !== 0) {
+            throw new ApiException(
+                $responseData['error'] ?? 'Unknown API error',
+                $responseData['code'] ?? 1,
+                $responseData['key'] ?? null
+            );
+        }
+
+        return $responseData['result'];
+    }
+
+    private static function buildNetworkException(int $errno, string $error): NetworkException
+    {
+        $sslErrors = [
+            CURLE_SSL_CONNECT_ERROR,
+            CURLE_PEER_FAILED_VERIFICATION,
+            CURLE_SSL_CERTPROBLEM,
+            CURLE_SSL_CACERT,
+        ];
+        $timeoutErrors = [
+            CURLE_OPERATION_TIMEDOUT,
+        ];
+        $connectionErrors = [
+            CURLE_COULDNT_RESOLVE_HOST,
+            CURLE_COULDNT_CONNECT,
+        ];
+
+        if (in_array($errno, $sslErrors, true)) {
+            return new SslException($error, $errno);
+        }
+        if (in_array($errno, $timeoutErrors, true)) {
+            return new TimeoutException($error, $errno);
+        }
+        if (in_array($errno, $connectionErrors, true)) {
+            return new ConnectionException($error, $errno);
+        }
+
+        return new NetworkException($error, $errno);
+    }
+
+    private static function buildHttpException(int $httpCode, string $body): HttpException
+    {
+        if ($httpCode === 429) {
+            return new RateLimitException('Too many requests', $httpCode, $body);
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return new UnauthorizedException('Unauthorized', $httpCode, $body);
+        }
+        if ($httpCode >= 500) {
+            return new ServerException('Server error', $httpCode, $body);
+        }
+
+        return new HttpException('HTTP error ' . $httpCode, $httpCode, $body);
     }
 }

@@ -10,7 +10,6 @@ class ClientTest extends TestCase
 {
     private const TEST_API_TOKEN = 'test_token';
     private const TEST_API_SECRET = 'test_secret';
-    private const TEST_ADDRESS = 'tron_address';
 
     private Client $client;
 
