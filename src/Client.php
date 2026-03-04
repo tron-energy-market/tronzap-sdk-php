@@ -358,13 +358,24 @@ class Client
             throw self::buildNetworkException($curlErrno, $curlError);
         }
 
-        // 2. HTTP-level errors (non-2xx)
+        // 2. JSON parsing
+        $responseData = json_decode($response, true);
+
+        // 3. API-level errors (valid JSON + code !== 0, regardless of HTTP status)
+        if (json_last_error() === JSON_ERROR_NONE && (!isset($responseData['code']) || $responseData['code'] !== 0)) {
+            throw new ApiException(
+                $responseData['error'] ?? 'Unknown API error',
+                $responseData['code'] ?? 1,
+                $responseData['key'] ?? null
+            );
+        }
+
+        // 4. HTTP-level errors (non-2xx: invalid JSON or valid JSON with code=0)
         if ($httpCode < 200 || $httpCode >= 300) {
             throw self::buildHttpException($httpCode, (string) $response);
         }
 
-        // 3. JSON parsing
-        $responseData = json_decode($response, true);
+        // 5. HTTP 2xx but invalid JSON
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new ServerException(
                 'Invalid JSON response: ' . json_last_error_msg(),
@@ -373,13 +384,9 @@ class Client
             );
         }
 
-        // 4. API-level errors
-        if (!isset($responseData['code']) || $responseData['code'] !== 0) {
-            throw new ApiException(
-                $responseData['error'] ?? 'Unknown API error',
-                $responseData['code'] ?? 1,
-                $responseData['key'] ?? null
-            );
+        // 6. Missing result key in a successful response
+        if (!isset($responseData['result'])) {
+            throw new ServerException('Missing result in response', $httpCode, (string) $response);
         }
 
         return $responseData['result'];
