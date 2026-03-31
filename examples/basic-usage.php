@@ -21,6 +21,11 @@ try {
     echo "\nAccount balance:\n";
     print_r($balance);
 
+    // Get address info (resources and balances)
+    $addressInfo = $client->getAddressInfo('TRX_ADDRESS');
+    echo "\nAddress info:\n";
+    print_r($addressInfo);
+
     // Estimate energy cost
     $estimate = $client->estimateEnergy('TRX_FROM_ADDRESS', 'TRX_TO_ADDRESS');
     echo "\nEnergy estimate:\n";

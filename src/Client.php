@@ -307,6 +307,20 @@ class Client
     }
 
     /**
+     * Get address info (resources and balances)
+     *
+     * @param string $address TRON address to query
+     * @return array Address resources (energy, bandwidth) and balances (TRX, USDT)
+     * @throws TronZapException
+     */
+    public function getAddressInfo(string $address): array
+    {
+        return $this->request('POST', '/v1/address-info', [
+            'address' => $address
+        ]);
+    }
+
+    /**
      * Get direct recharge information
      *
      * @return array Direct recharge information

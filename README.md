@@ -39,6 +39,10 @@ try {
     // Get account balance
     $balance = $client->getBalance();
     print_r($balance);
+    
+    // Get address info (resources and balances)
+    $addressInfo = $client->getAddressInfo('TRX_ADDRESS');
+    print_r($addressInfo);
 
     // Get available services
     $services = $client->getServices();
@@ -90,6 +94,7 @@ try {
 
 - `getServices()` - Get list of available services and prices
 - `getBalance()` - Get current account balance
+- `getAddressInfo(address)` - Get address resources (energy, bandwidth) and balances (TRX, USDT)
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Create a transaction for energy purchase
 - `createBandwidthTransaction(address, amount, externalId)` - Create a transaction for bandwidth purchase
 - `createAddressActivationTransaction(address, externalId)` - Create a transaction for address activation

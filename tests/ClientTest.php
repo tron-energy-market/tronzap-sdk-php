@@ -72,6 +72,11 @@ class ClientTest extends TestCase
         $this->assertTrue(method_exists($this->client, 'getBalance'));
     }
 
+    public function testGetAddressInfo(): void
+    {
+        $this->assertTrue(method_exists($this->client, 'getAddressInfo'));
+    }
+
     public function testGetDirectRechargeInfo(): void
     {
         // This is a placeholder for a real test that would mock API responses
