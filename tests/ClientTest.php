@@ -47,6 +47,11 @@ class ClientTest extends TestCase
         $this->assertTrue(method_exists($this->client, 'createBandwidthTransaction'));
     }
 
+    public function testCreateResourceBundleTransaction(): void
+    {
+        $this->assertTrue(method_exists($this->client, 'createResourceBundleTransaction'));
+    }
+
     public function testCreateAddressActivationTransaction(): void
     {
         // This is a placeholder for a real test that would mock API responses

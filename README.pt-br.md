@@ -68,6 +68,17 @@ try {
     );
     print_r($bandwidth);
 
+    // Comprar pacote de recursos (energia + bandwidth em uma só transação)
+    $bundle = $client->createResourceBundleTransaction(
+        'TRX_ADDRESS',   // endereço TRON
+        65000,           // quantidade de energia
+        350,            // quantidade de bandwidth
+        1,               // duração (horas)
+        'bundle-1',      // ID externo (opcional)
+        true             // ativar endereço (opcional)
+    );
+    print_r($bundle);
+
     // Verificar status da transação
     $status = $client->checkTransaction($transaction['id']);
     print_r($status);
@@ -95,6 +106,7 @@ try {
 - `getAddressInfo(address)` - Obter recursos do endereço (energy, bandwidth) e saldos (TRX, USDT)
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Criar transação para compra de energia
 - `createBandwidthTransaction(address, amount, externalId)` - Criar transação para compra de bandwidth
+- `createResourceBundleTransaction(address, energyAmount, bandwidthAmount, duration, externalId, activateAddress)` - Criar transação que compra energia e bandwidth em um único pacote
 - `createAddressActivationTransaction(address, externalId)` - Criar transação para ativação de endereço
 - `checkTransaction(transactionId)` - Verificar status da transação
 - `getDirectRechargeInfo()` - Obter informações sobre recargas diretas
@@ -174,21 +186,23 @@ try {
 
 ### Códigos de erro da API
 
-| Código | Constante                       | Descrição |
-|--------|---------------------------------|-----------|
-| 1      | `AUTH_ERROR`                    | Erro de autenticação — token API ou assinatura inválidos |
-| 2      | `INVALID_SERVICE_OR_PARAMS`    | Serviço ou parâmetros inválidos |
-| 5      | `WALLET_NOT_FOUND`             | Carteira interna não encontrada. Contate o suporte. |
-| 6      | `INSUFFICIENT_FUNDS`           | Saldo insuficiente |
-| 10     | `INVALID_TRON_ADDRESS`         | Endereço TRON inválido |
-| 11     | `INVALID_ENERGY_AMOUNT`        | Quantidade de energia inválida |
-| 12     | `INVALID_DURATION`             | Duração inválida |
-| 20     | `TRANSACTION_NOT_FOUND`        | Transação não encontrada |
-| 24     | `ADDRESS_NOT_ACTIVATED`        | Endereço não ativado |
-| 25     | `ADDRESS_ALREADY_ACTIVATED`    | Endereço já ativado |
-| 30     | `AML_CHECK_NOT_FOUND`          | Verificação AML não encontrada |
-| 35     | `SERVICE_NOT_AVAILABLE`        | Serviço não disponível |
-| 500    | `INTERNAL_SERVER_ERROR`        | Erro interno do servidor — contate o suporte |
+| Código | Constante                   | Descrição                                                            |
+|--------|-----------------------------|----------------------------------------------------------------------|
+| 1      | `AUTH_ERROR`                | Erro de autenticação — token API ou assinatura inválidos             |
+| 2      | `INVALID_SERVICE_OR_PARAMS` | Serviço ou parâmetros inválidos                                      |
+| 5      | `WALLET_NOT_FOUND`          | Carteira interna não encontrada. Contate o suporte.                  |
+| 6      | `INSUFFICIENT_FUNDS`        | Saldo insuficiente                                                   |
+| 10     | `INVALID_TRON_ADDRESS`      | Endereço TRON inválido                                               |
+| 11     | `INVALID_ENERGY_AMOUNT`     | Quantidade de energia inválida                                       |
+| 12     | `INVALID_DURATION`          | Duração inválida                                                     |
+| 20     | `TRANSACTION_NOT_FOUND`     | Transação/assinatura não encontrada (alias: `TRANSACTION_NOT_FOUND`) |
+| 21     | `CANNOT_STOP_SUBSCRIPTION`  | Não é possível parar a assinatura                                    |
+| 24     | `ADDRESS_NOT_ACTIVATED`     | Endereço não ativado                                                 |
+| 25     | `ADDRESS_ALREADY_ACTIVATED` | Endereço já ativado                                                  |
+| 30     | `AML_CHECK_NOT_FOUND`       | Verificação AML não encontrada                                       |
+| 35     | `SERVICE_NOT_AVAILABLE`     | Serviço não disponível                                               |
+| 50     | `INVALID_BANDWIDTH_AMOUNT`  | Quantidade de bandwidth inválida                                     |
+| 500    | `INTERNAL_SERVER_ERROR`     | Erro interno do servidor — contate o suporte                         |
 
 ## Testes
 

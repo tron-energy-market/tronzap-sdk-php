@@ -56,6 +56,18 @@ try {
     echo "\nBandwidth transaction created:\n";
     print_r($bandwidthTransaction);
 
+    // Create a resource bundle transaction (energy + bandwidth in one purchase)
+    $bundleTransaction = $client->createResourceBundleTransaction(
+        'TRX_ADDRESS', // Replace with actual TRON address
+        65000,         // Energy amount
+        350,          // Bandwidth amount
+        1,             // Duration (hours), currently only 1
+        'bundle-' . time(), // External ID
+        true           // Activate address
+    );
+    echo "\nResource bundle transaction created:\n";
+    print_r($bundleTransaction);
+
     // Check transaction status
     $transactionId = $energyTransaction['id'] ?? '';
     if ($transactionId) {

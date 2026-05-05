@@ -125,7 +125,7 @@ class Client
      *
      * @param string $address TRON wallet address
      * @param int $energyAmount Amount of energy to purchase
-     * @param int $duration Duration in hours (1 or 24)
+     * @param int $duration Duration in hours (currently only 1 is supported)
      * @param string|null $externalId Optional external transaction ID
      * @param bool $activateAddress Whether to activate the address
      * @return array Transaction data
@@ -142,8 +142,9 @@ class Client
             'service' => 'energy',
             'params' => [
                 'address' => $address,
-                'energy_amount' => $energyAmount,
-                'amount' => $energyAmount,
+                'amounts' => [
+                    'energy' => $energyAmount
+                ],
                 'duration' => $duration
             ]
         ];
@@ -177,10 +178,55 @@ class Client
             'service' => 'bandwidth',
             'params' => [
                 'address' => $address,
-                'amount' => $amount,
+                'amounts' => [
+                    'bandwidth' => $amount
+                ],
                 'duration' => 1
             ]
         ];
+
+        if ($externalId) {
+            $params['external_id'] = $externalId;
+        }
+
+        return $this->request('POST', '/v1/transaction/new', $params);
+    }
+
+    /**
+     * Create a new transaction for a resource bundle (energy + bandwidth in one purchase).
+     *
+     * @param string $address TRON wallet address
+     * @param int $energyAmount Amount of energy to purchase
+     * @param int $bandwidthAmount Amount of bandwidth to purchase
+     * @param int $duration Duration in hours (currently only 1 is supported)
+     * @param string|null $externalId Optional external transaction ID
+     * @param bool $activateAddress Whether to activate the address
+     * @return array Transaction data
+     * @throws TronZapException
+     */
+    public function createResourceBundleTransaction(
+        string $address,
+        int $energyAmount,
+        int $bandwidthAmount,
+        int $duration = 1,
+        ?string $externalId = null,
+        bool $activateAddress = false
+    ): array {
+        $params = [
+            'service' => 'resource_bundle',
+            'params' => [
+                'address' => $address,
+                'amounts' => [
+                    'energy' => $energyAmount,
+                    'bandwidth' => $bandwidthAmount
+                ],
+                'duration' => $duration
+            ]
+        ];
+
+        if ($activateAddress) {
+            $params['params']['activate_address'] = true;
+        }
 
         if ($externalId) {
             $params['external_id'] = $externalId;
@@ -408,18 +454,21 @@ class Client
 
     private static function buildNetworkException(int $errno, string $error): NetworkException
     {
+        // Use numeric libcurl error codes — symbolic CURLE_* constants are
+        // not always defined in PHP depending on the libcurl/PHP build.
+        // Reference: https://curl.se/libcurl/c/libcurl-errors.html
         $sslErrors = [
-            CURLE_SSL_CONNECT_ERROR,
-            CURLE_PEER_FAILED_VERIFICATION,
-            CURLE_SSL_CERTPROBLEM,
-            CURLE_SSL_CACERT,
+            35, // CURLE_SSL_CONNECT_ERROR
+            51, // CURLE_PEER_FAILED_VERIFICATION
+            58, // CURLE_SSL_CERTPROBLEM
+            60, // CURLE_SSL_CACERT
         ];
         $timeoutErrors = [
-            CURLE_OPERATION_TIMEDOUT,
+            28, // CURLE_OPERATION_TIMEDOUT
         ];
         $connectionErrors = [
-            CURLE_COULDNT_RESOLVE_HOST,
-            CURLE_COULDNT_CONNECT,
+            6, // CURLE_COULDNT_RESOLVE_HOST
+            7, // CURLE_COULDNT_CONNECT
         ];
 
         if (in_array($errno, $sslErrors, true)) {

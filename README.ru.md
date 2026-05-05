@@ -68,6 +68,17 @@ try {
     );
     print_r($bandwidth);
 
+    // Покупка пакета ресурсов (energy + bandwidth одной транзакцией)
+    $bundle = $client->createResourceBundleTransaction(
+        'TRX_ADDRESS',   // адрес TRON
+        65000,           // количество energy
+        350,            // количество bandwidth
+        1,               // длительность (часы)
+        'bundle-1',      // внешний ID (опционально)
+        true             // активировать адрес (опционально)
+    );
+    print_r($bundle);
+
     // Проверка статуса транзакции
     $status = $client->checkTransaction($transaction['id']);
     print_r($status);
@@ -95,6 +106,7 @@ try {
 - `getAddressInfo(address)` - Получение ресурсов адреса (energy, bandwidth) и балансов (TRX, USDT)
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Создание транзакции на покупку энергии
 - `createBandwidthTransaction(address, amount, externalId)` - Создание транзакции на покупку bandwidth
+- `createResourceBundleTransaction(address, energyAmount, bandwidthAmount, duration, externalId, activateAddress)` - Создание транзакции, покупающей energy и bandwidth одним пакетом
 - `createAddressActivationTransaction(address, externalId)` - Создание транзакции для активации адреса
 - `checkTransaction(transactionId)` - Проверка статуса транзакции
 - `getDirectRechargeInfo()` - Получение информации о прямом пополнении
@@ -174,21 +186,23 @@ try {
 
 ### Коды ошибок API
 
-| Код | Константа                       | Описание |
-|-----|---------------------------------|----------|
-| 1   | `AUTH_ERROR`                    | Ошибка аутентификации — неверный API-токен или подпись |
-| 2   | `INVALID_SERVICE_OR_PARAMS`    | Некорректный сервис или параметры |
-| 5   | `WALLET_NOT_FOUND`             | Внутренний кошелёк не найден. Обратитесь в поддержку. |
-| 6   | `INSUFFICIENT_FUNDS`           | Недостаточно средств |
-| 10  | `INVALID_TRON_ADDRESS`         | Некорректный адрес TRON |
-| 11  | `INVALID_ENERGY_AMOUNT`        | Некорректное количество энергии |
-| 12  | `INVALID_DURATION`             | Некорректная длительность |
-| 20  | `TRANSACTION_NOT_FOUND`        | Транзакция не найдена |
-| 24  | `ADDRESS_NOT_ACTIVATED`        | Адрес не активирован |
-| 25  | `ADDRESS_ALREADY_ACTIVATED`    | Адрес уже активирован |
-| 30  | `AML_CHECK_NOT_FOUND`          | AML-проверка не найдена |
-| 35  | `SERVICE_NOT_AVAILABLE`        | Сервис временно недоступен |
-| 500 | `INTERNAL_SERVER_ERROR`        | Внутренняя ошибка сервера — обратитесь в поддержку |
+| Код | Константа                   | Описание                                                        |
+|-----|-----------------------------|-----------------------------------------------------------------|
+| 1   | `AUTH_ERROR`                | Ошибка аутентификации — неверный API-токен или подпись          |
+| 2   | `INVALID_SERVICE_OR_PARAMS` | Некорректный сервис или параметры                               |
+| 5   | `WALLET_NOT_FOUND`          | Внутренний кошелёк не найден. Обратитесь в поддержку.           |
+| 6   | `INSUFFICIENT_FUNDS`        | Недостаточно средств                                            |
+| 10  | `INVALID_TRON_ADDRESS`      | Некорректный адрес TRON                                         |
+| 11  | `INVALID_ENERGY_AMOUNT`     | Некорректное количество энергии                                 |
+| 12  | `INVALID_DURATION`          | Некорректная длительность                                       |
+| 20  | `TRANSACTION_NOT_FOUND`     | Транзакция/подписка не найдена (алиас: `TRANSACTION_NOT_FOUND`) |
+| 21  | `CANNOT_STOP_SUBSCRIPTION`  | Невозможно остановить подписку                                  |
+| 24  | `ADDRESS_NOT_ACTIVATED`     | Адрес не активирован                                            |
+| 25  | `ADDRESS_ALREADY_ACTIVATED` | Адрес уже активирован                                           |
+| 30  | `AML_CHECK_NOT_FOUND`       | AML-проверка не найдена                                         |
+| 35  | `SERVICE_NOT_AVAILABLE`     | Сервис временно недоступен                                      |
+| 50  | `INVALID_BANDWIDTH_AMOUNT`  | Некорректное количество bandwidth                               |
+| 500 | `INTERNAL_SERVER_ERROR`     | Внутренняя ошибка сервера — обратитесь в поддержку              |
 
 ## Тестирование
 

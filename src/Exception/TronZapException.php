@@ -32,6 +32,9 @@ class TronZapException extends \Exception
     // Transaction not found - Verify the transaction ID or external ID is correct.
     public const TRANSACTION_NOT_FOUND = 20;
 
+    // Cannot stop subscription - Review subscription limits or complete pending transactions.
+    public const CANNOT_STOP_SUBSCRIPTION = 21;
+
     // Address not activated - Activate the address first by making an address activation transaction.
     public const ADDRESS_NOT_ACTIVATED = 24;
 
@@ -43,4 +46,7 @@ class TronZapException extends \Exception
 
     // Service not available - The service is temporarily unavailable.
     public const SERVICE_NOT_AVAILABLE = 35;
+
+    // Invalid bandwidth amount - Ensure the requested bandwidth amount is valid.
+    public const INVALID_BANDWIDTH_AMOUNT = 50;
 }

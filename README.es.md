@@ -68,6 +68,17 @@ try {
     );
     print_r($bandwidth);
 
+    // Comprar un paquete de recursos (energía + ancho de banda en una sola transacción)
+    $bundle = $client->createResourceBundleTransaction(
+        'TRX_ADDRESS',   // dirección TRON
+        65000,           // cantidad de energía
+        350,            // cantidad de ancho de banda
+        1,               // duración (horas)
+        'bundle-1',      // ID externo (opcional)
+        true             // activar dirección (opcional)
+    );
+    print_r($bundle);
+
     // Consultar estado de transacción
     $status = $client->checkTransaction($transaction['id']);
     print_r($status);
@@ -95,6 +106,7 @@ try {
 - `getAddressInfo(address)` - Obtiene recursos de la dirección (energy, bandwidth) y saldos (TRX, USDT)
 - `createEnergyTransaction(address, energyAmount, duration, externalId, activateAddress)` - Crea una transacción para compra de energía
 - `createBandwidthTransaction(address, amount, externalId)` - Crea una transacción para compra de ancho de banda
+- `createResourceBundleTransaction(address, energyAmount, bandwidthAmount, duration, externalId, activateAddress)` - Crea una transacción que compra energía y ancho de banda en un solo paquete
 - `createAddressActivationTransaction(address, externalId)` - Crea una transacción para activación de dirección
 - `checkTransaction(transactionId)` - Consulta el estado de una transacción
 - `getDirectRechargeInfo()` - Obtiene información sobre recargas directas
@@ -174,21 +186,23 @@ try {
 
 ### Códigos de error de la API
 
-| Código | Constante                       | Descripción |
-|--------|---------------------------------|-------------|
-| 1      | `AUTH_ERROR`                    | Error de autenticación — token API o firma inválidos |
-| 2      | `INVALID_SERVICE_OR_PARAMS`    | Servicio o parámetros inválidos |
-| 5      | `WALLET_NOT_FOUND`             | Billetera interna no encontrada. Contacta a soporte. |
-| 6      | `INSUFFICIENT_FUNDS`           | Fondos insuficientes |
-| 10     | `INVALID_TRON_ADDRESS`         | Dirección TRON inválida |
-| 11     | `INVALID_ENERGY_AMOUNT`        | Cantidad de energía inválida |
-| 12     | `INVALID_DURATION`             | Duración inválida |
-| 20     | `TRANSACTION_NOT_FOUND`        | Transacción no encontrada |
-| 24     | `ADDRESS_NOT_ACTIVATED`        | Dirección no activada |
-| 25     | `ADDRESS_ALREADY_ACTIVATED`    | Dirección ya activada |
-| 30     | `AML_CHECK_NOT_FOUND`          | Verificación AML no encontrada |
-| 35     | `SERVICE_NOT_AVAILABLE`        | Servicio no disponible |
-| 500    | `INTERNAL_SERVER_ERROR`        | Error interno del servidor — contacta a soporte |
+| Código | Constante                      | Descripción                                                            |
+|--------|--------------------------------|------------------------------------------------------------------------|
+| 1      | `AUTH_ERROR`                   | Error de autenticación — token API o firma inválidos                   |
+| 2      | `INVALID_SERVICE_OR_PARAMS`    | Servicio o parámetros inválidos                                        |
+| 5      | `WALLET_NOT_FOUND`             | Billetera interna no encontrada. Contacta a soporte.                   |
+| 6      | `INSUFFICIENT_FUNDS`           | Fondos insuficientes                                                   |
+| 10     | `INVALID_TRON_ADDRESS`         | Dirección TRON inválida                                                |
+| 11     | `INVALID_ENERGY_AMOUNT`        | Cantidad de energía inválida                                           |
+| 12     | `INVALID_DURATION`             | Duración inválida                                                      |
+| 20     | `TRANSACTION_NOT_FOUND`        | Transacción/suscripción no encontrada (alias: `TRANSACTION_NOT_FOUND`) |
+| 21     | `CANNOT_STOP_SUBSCRIPTION`     | No se puede detener la suscripción                                     |
+| 24     | `ADDRESS_NOT_ACTIVATED`        | Dirección no activada                                                  |
+| 25     | `ADDRESS_ALREADY_ACTIVATED`    | Dirección ya activada                                                  |
+| 30     | `AML_CHECK_NOT_FOUND`          | Verificación AML no encontrada                                         |
+| 35     | `SERVICE_NOT_AVAILABLE`        | Servicio no disponible                                                 |
+| 50     | `INVALID_BANDWIDTH_AMOUNT`     | Cantidad de ancho de banda inválida                                    |
+| 500    | `INTERNAL_SERVER_ERROR`        | Error interno del servidor — contacta a soporte                        |
 
 ## Pruebas
 
