@@ -20,7 +20,8 @@ composer require tron-energy-market/tronzap-sdk-php
 
 ## Requisitos
 
-- PHP 7.4 ou superior
+- PHP 7.4 ou superior com as extensões `curl` e `json`
+- Certificados CA para o cURL: o SDK verifica o certificado TLS da API. Se o PHP não tiver um pacote de CA configurado (comum no Windows), defina `curl.cainfo` no `php.ini` ou passe o caminho de um arquivo CA como quinto argumento do construtor.
 
 ## Uso
 
@@ -32,6 +33,8 @@ use TronZap\Exception\TronZapException;
 $apiToken = 'seu_api_token';
 $apiSecret = 'seu_api_secret';
 $client = new TronZapClient($apiToken, $apiSecret);
+// Opcional: URL base, tempo limite em segundos (30 por padrão) e um arquivo de certificados CA
+// $client = new TronZapClient($apiToken, $apiSecret, 'https://api.tronzap.com', 30.0, '/caminho/para/cacert.pem');
 
 try {
     // Obter saldo da conta
@@ -47,14 +50,14 @@ try {
     print_r($services);
 
     // Estimar quantidade de energia para transferência USDT
-    $estimate = $client->estimateEnergy('FROM_TRX_ADDRESS', 'TO_TRX_ADDRESS', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t');
+    $estimate = $client->estimateEnergy('FROM_TRX_ADDRESS', 'TO_TRX_ADDRESS');
     print_r($estimate);
 
     // Criar transação de energia
     $transaction = $client->createEnergyTransaction(
         'TRX_ADDRESS',       // endereço da carteira TRON
         $estimate['energy'], // quantidade de energia
-        1,                   // duração (horas), 1 ou 24
+        1,                   // duração (horas): uma das que getServices() retorna
         'my-tx-id',          // ID externo (opcional)
         true                 // ativar endereço (opcional)
     );
@@ -63,7 +66,7 @@ try {
     // Comprar banda larga (bandwidth)
     $bandwidth = $client->createBandwidthTransaction(
         'TRX_ADDRESS',   // endereço TRON
-        1000,            // quantidade de bandwidth
+        345,             // quantidade de bandwidth
         'bandwidth-1'    // ID externo (opcional)
     );
     print_r($bandwidth);
@@ -72,7 +75,7 @@ try {
     $bundle = $client->createResourceBundleTransaction(
         'TRX_ADDRESS',   // endereço TRON
         65000,           // quantidade de energia
-        350,            // quantidade de bandwidth
+        345,             // quantidade de bandwidth
         1,               // duração (horas)
         'bundle-1',      // ID externo (opcional)
         true             // ativar endereço (opcional)
@@ -122,6 +125,7 @@ O SDK utiliza uma hierarquia de exceções para tratamento preciso de erros:
 ```
 TronZapException
 ├── ApiException             — erros a nível de API (code != 0 na resposta)
+├── InvalidRequestException  — argumentos inválidos, rejeitados antes do envio
 ├── NetworkException         — erros de rede/conectividade
 │   ├── ConnectionException  — não foi possível conectar ao servidor
 │   ├── TimeoutException     — tempo de espera esgotado
@@ -139,6 +143,7 @@ use TronZap\Client as TronZapClient;
 use TronZap\Exception\ApiException;
 use TronZap\Exception\ConnectionException;
 use TronZap\Exception\HttpException;
+use TronZap\Exception\InvalidRequestException;
 use TronZap\Exception\NetworkException;
 use TronZap\Exception\RateLimitException;
 use TronZap\Exception\ServerException;
@@ -160,9 +165,14 @@ try {
         echo "Chave de erro: {$e->getErrorKey()}\n";
     }
 
+    // Informe-o ao contatar o suporte
+    echo "ID da requisição: {$e->getRequestId()}\n";
+
     if ($e->getCode() === TronZapException::INVALID_TRON_ADDRESS) {
         echo "Verifique o formato do endereço TRON.\n";
     }
+} catch (InvalidRequestException $e) {
+    echo "Argumentos inválidos: {$e->getMessage()}\n";
 } catch (RateLimitException $e) {
     echo "Muitas requisições. Reduza a frequência.\n";
 } catch (UnauthorizedException $e) {
@@ -204,11 +214,15 @@ try {
 | 50     | `INVALID_BANDWIDTH_AMOUNT`  | Quantidade de bandwidth inválida                                     |
 | 500    | `INTERNAL_SERVER_ERROR`     | Erro interno do servidor — contate o suporte                         |
 
-## Testes
+## Desenvolvimento
 
 ```bash
+composer install
 composer test
+composer lint
 ```
+
+Os testes rodam contra um servidor HTTP/TLS local e nunca chamam a API real. `examples/basic-usage.php` é um teste de fumaça contra um ambiente real; as instruções estão no início do arquivo.
 
 ## Licença
 

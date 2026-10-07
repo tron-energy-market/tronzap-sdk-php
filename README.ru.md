@@ -20,7 +20,8 @@ composer require tron-energy-market/tronzap-sdk-php
 
 ## Требования
 
-- PHP 7.4 или выше
+- PHP 7.4 или выше с расширениями `curl` и `json`
+- Корневые сертификаты CA для cURL: SDK проверяет TLS-сертификат API. Если в PHP не настроен CA bundle (часто на Windows), задайте `curl.cainfo` в `php.ini` или передайте путь к файлу CA пятым аргументом конструктора.
 
 ## Использование
 
@@ -32,6 +33,8 @@ use TronZap\Exception\TronZapException;
 $apiToken = 'ваш_api_token';
 $apiSecret = 'ваш_api_secret';
 $client = new TronZapClient($apiToken, $apiSecret);
+// Опционально: базовый URL, таймаут в секундах (по умолчанию 30) и файл с корневыми сертификатами CA
+// $client = new TronZapClient($apiToken, $apiSecret, 'https://api.tronzap.com', 30.0, '/путь/к/cacert.pem');
 
 try {
     // Получение баланса аккаунта
@@ -47,14 +50,14 @@ try {
     print_r($services);
 
     // Расчёт количества энергии для перевода USDT
-    $estimate = $client->estimateEnergy('FROM_TRX_ADDRESS', 'TO_TRX_ADDRESS', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t');
+    $estimate = $client->estimateEnergy('FROM_TRX_ADDRESS', 'TO_TRX_ADDRESS');
     print_r($estimate);
 
     // Создание транзакции на энергию
     $transaction = $client->createEnergyTransaction(
         'TRX_ADDRESS',       // адрес кошелька TRON
         $estimate['energy'], // количество энергии
-        1,                   // длительность делегирования (часы), 1 или 24
+        1,                   // длительность (часы): одна из тех, что возвращает getServices()
         'my-tx-id',          // внешний ID (опционально)
         true                 // активация адреса (опционально)
     );
@@ -63,7 +66,7 @@ try {
     // Покупка пропускной способности
     $bandwidth = $client->createBandwidthTransaction(
         'TRX_ADDRESS',   // адрес TRON
-        1000,            // объем bandwidth
+        345,             // объем bandwidth
         'bandwidth-1'    // внешний ID (опционально)
     );
     print_r($bandwidth);
@@ -72,7 +75,7 @@ try {
     $bundle = $client->createResourceBundleTransaction(
         'TRX_ADDRESS',   // адрес TRON
         65000,           // количество energy
-        350,            // количество bandwidth
+        345,             // количество bandwidth
         1,               // длительность (часы)
         'bundle-1',      // внешний ID (опционально)
         true             // активировать адрес (опционально)
@@ -122,6 +125,7 @@ SDK использует иерархию исключений для точно
 ```
 TronZapException
 ├── ApiException             — ошибки API (code != 0 в ответе)
+├── InvalidRequestException  — неверные аргументы, отклонены до отправки
 ├── NetworkException         — сетевые ошибки
 │   ├── ConnectionException  — невозможно подключиться к серверу
 │   ├── TimeoutException     — превышено время ожидания
@@ -139,6 +143,7 @@ use TronZap\Client as TronZapClient;
 use TronZap\Exception\ApiException;
 use TronZap\Exception\ConnectionException;
 use TronZap\Exception\HttpException;
+use TronZap\Exception\InvalidRequestException;
 use TronZap\Exception\NetworkException;
 use TronZap\Exception\RateLimitException;
 use TronZap\Exception\ServerException;
@@ -160,9 +165,14 @@ try {
         echo "Ключ ошибки: {$e->getErrorKey()}\n";
     }
 
+    // Укажите его при обращении в поддержку
+    echo "ID запроса: {$e->getRequestId()}\n";
+
     if ($e->getCode() === TronZapException::INVALID_TRON_ADDRESS) {
         echo "Проверьте формат адреса TRON.\n";
     }
+} catch (InvalidRequestException $e) {
+    echo "Неверные аргументы: {$e->getMessage()}\n";
 } catch (RateLimitException $e) {
     echo "Слишком много запросов. Замедлите частоту обращений.\n";
 } catch (UnauthorizedException $e) {
@@ -204,11 +214,15 @@ try {
 | 50  | `INVALID_BANDWIDTH_AMOUNT`  | Некорректное количество bandwidth                               |
 | 500 | `INTERNAL_SERVER_ERROR`     | Внутренняя ошибка сервера — обратитесь в поддержку              |
 
-## Тестирование
+## Разработка
 
 ```bash
+composer install
 composer test
+composer lint
 ```
+
+Тесты работают с локальным HTTP/TLS-сервером и никогда не обращаются к реальному API. `examples/basic-usage.php` — smoke-тест против реального окружения; инструкция в начале файла.
 
 ## Лицензия
 
