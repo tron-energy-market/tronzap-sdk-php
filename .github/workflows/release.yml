@@ -65,12 +65,21 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # GitHub renders every line break of release notes, so wrapped changelog lines are joined back.
       - name: Extract the release notes from the changelog
         run: |
           awk -v heading="## [${GITHUB_REF_NAME#v}]" '
+            function flush() { if (buf != "") print buf; buf = "" }
             index($0, heading) == 1 { found = 1; next }
-            found && /^## \[/ { exit }
-            found { print }
+            !found { next }
+            /^## \[/ { exit }
+            /^```/ { flush(); fence = !fence; print; next }
+            fence { print; next }
+            /^[ \t]*$/ { flush(); print ""; next }
+            /^(#|\|)/ { flush(); print; next }
+            /^[ \t]*([-*+]|[0-9]+\.) / { flush(); buf = $0; next }
+            { line = $0; sub(/^[ \t]+/, "", line); buf = buf == "" ? line : buf " " line }
+            END { flush() }
           ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
 
       - name: Create a draft release
@@ -78,5 +87,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
-            --title "Buy TRON Energy with TronZap" \
+            --title "$GITHUB_REF_NAME" \
             --notes-file "$RUNNER_TEMP/notes.md"
