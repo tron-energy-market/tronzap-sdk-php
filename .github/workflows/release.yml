@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['7.4', '8.5']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, json, openssl
+          coverage: none
+
+      - name: Check that the tag matches the SDK version
+        run: |
+          version="$(php -r 'require "src/Client.php"; echo TronZap\Client::VERSION;')"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match Client::VERSION ${version}"
+            exit 1
+          fi
+
+      - name: Check that the changelog has the version
+        run: |
+          if ! grep -q "^## \[${GITHUB_REF_NAME#v}\] - " CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for ${GITHUB_REF_NAME#v}"
+            exit 1
+          fi
+
+      - name: Install
+        run: composer update --no-interaction --no-progress
+
+      - name: Lint
+        if: matrix.php == '8.5'
+        run: |
+          composer validate --strict --no-check-lock
+          vendor/bin/phpcs
+          vendor/bin/phpstan analyse --no-progress
+
+      - name: Test
+        run: vendor/bin/phpunit
+
+  # Packagist reads the tag itself, so this only prepares the GitHub release for review.
+  github-release:
+    name: Draft the GitHub release
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Extract the release notes from the changelog
+        run: |
+          awk -v heading="## [${GITHUB_REF_NAME#v}]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "Buy TRON Energy with TronZap" \
+            --notes-file "$RUNNER_TEMP/notes.md"
