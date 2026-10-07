@@ -7,6 +7,7 @@
     <arg value="sp"/>
     <rule ref="PSR12"/>
     <rule ref="PSR1.Files.SideEffects">
+        <exclude-pattern>examples/*</exclude-pattern>
         <exclude-pattern>tests/Support/server.php</exclude-pattern>
     </rule>
     <rule ref="Generic.Files.LineLength">
