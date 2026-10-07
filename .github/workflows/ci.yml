@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Windows runners default to PowerShell.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+        # macOS and Windows are here for the platform-specific network and TLS error classification.
+        include:
+          - os: macos-latest
+            php: '8.5'
+          - os: windows-latest
+            php: '8.5'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, json, openssl
+          coverage: pcov
+          ini-values: error_reporting=-1, display_errors=On
+
+      - name: Install
+        run: composer update --no-interaction --no-progress
+
+      - name: Test
+        run: vendor/bin/phpunit --coverage-text
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install
+        run: composer update --no-interaction --no-progress
+
+      - name: PHPCS
+        run: vendor/bin/phpcs
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-lock
+
+      # Composer installs the library from the GitHub archive of the tag, which is what git archive produces.
+      - name: Inspect the archive
+        run: |
+          git archive --format=tar HEAD | tar -t | sort | tee archive.txt
+          if grep -E '^(tests|examples|\.github)/' archive.txt; then
+            echo "::error::development files are exported into the package"
+            exit 1
+          fi
+
+      - name: Install the archive into an empty project
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir package
+          git -C "$GITHUB_WORKSPACE" archive --format=tar HEAD | tar -x -C package
+          cd package
+          composer install --no-dev --no-interaction --no-progress
+          php -r 'require "vendor/autoload.php"; echo TronZap\Client::VERSION, PHP_EOL;'
