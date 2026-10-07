@@ -6,6 +6,9 @@
     <arg name="extensions" value="php"/>
     <arg value="sp"/>
     <rule ref="PSR12"/>
+    <rule ref="PSR1.Files.SideEffects">
+        <exclude-pattern>tests/Support/server.php</exclude-pattern>
+    </rule>
     <rule ref="Generic.Files.LineLength">
         <properties>
             <property name="lineLimit" value="120"/>
