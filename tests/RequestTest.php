@@ -245,10 +245,10 @@ final class RequestTest extends ServerTestCase
 
     public function testSignatureCoversNonAsciiBody(): void
     {
-        $this->client->checkTransaction(null, 'замовлення-№1');
+        $this->client->checkTransaction(null, 'pedido-año-订单-😀');
 
         $received = self::$server->last();
-        self::assertSame(['external_id' => 'замовлення-№1'], $received->json());
+        self::assertSame(['external_id' => 'pedido-año-订单-😀'], $received->json());
         self::assertSame(hash('sha256', $received->body . self::API_SECRET), $received->headers['x-signature']);
     }
 
