@@ -49,6 +49,11 @@ All notable changes to this project are documented in this file. The format is b
 - `createResourceBundleTransaction` buys energy and bandwidth in one transaction.
 - Error codes `CANNOT_STOP_SUBSCRIPTION` (21), `SERVICE_NOT_AVAILABLE` (35) and `INVALID_BANDWIDTH_AMOUNT` (50).
 
+### Changed
+
+- `createEnergyTransaction` and `createBandwidthTransaction` send the amount as `params.amounts.energy` and
+  `params.amounts.bandwidth` instead of `params.energy_amount` and `params.amount`.
+
 ### Fixed
 
 - Network errors are classified by numeric libcurl error codes, so PHP builds that do not define every `CURLE_*`
