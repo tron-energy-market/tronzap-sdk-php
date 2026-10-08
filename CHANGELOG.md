@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file. The format is b
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The README and `examples/basic-usage.php` read the API's `amount`, `min_amount` and `max_amount` fields instead of
+  the deprecated `energy`, `min_energy` and `max_energy`.
+
+### Fixed
+
+- `examples/basic-usage.php` labels the energy `price` of `getServices()` as per 1000 units, not per unit. Energy and
+  bandwidth are both priced per 1000 units: the cost is `price × amount / 1000`.
+- The PHPDoc of `calculate` and `createEnergyTransaction` gave the duration as 1 or 24 hours; only 1 is supported.
+
 ## [1.5.0] - 2026-10-07
 
 ### Security

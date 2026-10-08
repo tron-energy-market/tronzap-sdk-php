@@ -58,7 +58,7 @@ try {
     // Create an energy transaction
     $transaction = $client->createEnergyTransaction(
         'TRX_ADDRESS',       // TRON wallet address
-        $estimate['energy'], // Energy amount
+        $estimate['amount'], // Energy amount
         1,                   // Duration (hours): one of the durations getServices() lists
         'my-tx-id',          // External ID (optional)
         true                 // Activate address (optional)

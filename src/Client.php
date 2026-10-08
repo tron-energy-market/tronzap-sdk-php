@@ -150,7 +150,7 @@ class Client
      *
      * @param string $address TRON wallet address
      * @param int $energy Amount of energy to purchase
-     * @param int $duration Duration in hours (1 or 24)
+     * @param int $duration Duration in hours (currently only 1 is supported)
      * @return array<mixed> Calculation result
      * @throws TronZapException
      */
@@ -170,7 +170,7 @@ class Client
      *
      * @param string $address TRON wallet address
      * @param int $energyAmount Amount of energy to purchase
-     * @param int $duration Duration in hours (1 or 24)
+     * @param int $duration Duration in hours (currently only 1 is supported)
      * @param string|null $externalId Optional external transaction ID
      * @param bool $activateAddress Whether to activate the address
      * @return array<mixed> Transaction data

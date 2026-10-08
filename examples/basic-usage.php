@@ -119,10 +119,10 @@ function main(): int
         $services = $client->getServices();
         foreach (rows($services, 'energy') as $rate) {
             printf(
-                "  energy %sh %s..%s at %s per unit (65k = %s)\n",
+                "  energy %sh %s..%s at %s per 1000 units (65k = %s)\n",
                 field($rate, 'duration'),
-                field($rate, 'min_energy'),
-                field($rate, 'max_energy'),
+                field($rate, 'min_amount'),
+                field($rate, 'max_amount'),
                 field($rate, 'price'),
                 field($rate, 'price_65k')
             );
@@ -184,7 +184,7 @@ function main(): int
         $calculation = $client->calculate($value, ENERGY);
         printf(
             "  %s energy for %sh costs %s\n",
-            field($calculation, 'energy'),
+            field($calculation, 'amount'),
             field($calculation, 'duration'),
             field($calculation, 'total')
         );
@@ -197,7 +197,7 @@ function main(): int
         $toAddress === '' ? null : $fromAddress,
         static function (string $value) use ($client, $toAddress): void {
             $estimate = $client->estimateEnergy($value, $toAddress);
-            printf("  %s energy, total %s\n", field($estimate, 'energy'), field($estimate, 'total'));
+            printf("  %s energy, total %s\n", field($estimate, 'amount'), field($estimate, 'total'));
         }
     );
 
