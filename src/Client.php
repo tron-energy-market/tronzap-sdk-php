@@ -384,18 +384,123 @@ class Client
      */
     public function checkTransaction(?string $id = null, ?string $externalId = null): array
     {
-        $params = [];
-        if ($id !== null && $id !== '') {
-            $params['id'] = $id;
+        return $this->request('POST', '/v1/transaction/check', self::idParams($id, $externalId));
+    }
+
+    /**
+     * Get subscription plans
+     *
+     * @return array<mixed> Plans keyed by subscription ID (e.g. "unlimited_energy"), in the order the API lists them.
+     *                      Empty when no plans are on sale.
+     * @throws TronZapException
+     */
+    public function getSubscriptions(): array
+    {
+        return $this->request('POST', '/v1/subscriptions', []);
+    }
+
+    /**
+     * Start a subscription that supplies an address with energy for every transaction
+     *
+     * Starting a subscription charges the plan's initial price.
+     *
+     * @param string $subscriptionId Plan key from getSubscriptions(), e.g. "unlimited_energy", not its numeric id
+     * @param string $address TRON wallet address
+     * @param int $durationDays Duration in days, 0 for no time limit
+     * @param int $transactionsLimit Maximum number of transactions, 0 for no limit
+     * @param string|null $externalId Optional external subscription ID
+     * @param bool $activateAddress Whether to activate the address
+     * @return array<mixed> Subscription data with its params
+     * @throws InvalidRequestException if the plan or address is empty, or a limit is negative
+     * @throws TronZapException
+     */
+    public function startSubscription(
+        string $subscriptionId,
+        string $address,
+        int $durationDays = 0,
+        int $transactionsLimit = 0,
+        ?string $externalId = null,
+        bool $activateAddress = false
+    ): array {
+        self::requireValue($subscriptionId, 'subscriptionId');
+        self::requireValue($address, 'address');
+        if ($durationDays < 0) {
+            throw new InvalidRequestException('durationDays cannot be negative');
         }
-        if ($externalId !== null && $externalId !== '') {
-            $params['external_id'] = $externalId;
-        }
-        if ($params === []) {
-            throw new InvalidRequestException('either id or externalId is required');
+        if ($transactionsLimit < 0) {
+            throw new InvalidRequestException('transactionsLimit cannot be negative');
         }
 
-        return $this->request('POST', '/v1/transaction/check', $params);
+        $params = [
+            'subscription_id' => $subscriptionId,
+            'params' => [
+                'address' => $address,
+                'duration' => $durationDays,
+                'transactions_limit' => $transactionsLimit
+            ]
+        ];
+
+        if ($activateAddress) {
+            $params['params']['activate_address'] = true;
+        }
+
+        return $this->request('POST', '/v1/subscription/start', self::withExternalId($params, $externalId));
+    }
+
+    /**
+     * Check subscription status
+     *
+     * @param string|null $id Subscription ID
+     * @param string|null $externalId External subscription ID
+     * @return array<mixed> Subscription data with its params
+     * @throws InvalidRequestException if both id and externalId are empty
+     * @throws TronZapException
+     */
+    public function checkSubscription(?string $id = null, ?string $externalId = null): array
+    {
+        return $this->request('POST', '/v1/subscription/check', self::idParams($id, $externalId));
+    }
+
+    /**
+     * Stop a subscription
+     *
+     * A subscription with a transactions limit cannot be stopped and fails with
+     * TronZapException::CANNOT_STOP_SUBSCRIPTION.
+     *
+     * @param string|null $id Subscription ID
+     * @param string|null $externalId External subscription ID
+     * @return array<mixed> Subscription data with its params; the address may be absent
+     * @throws InvalidRequestException if both id and externalId are empty
+     * @throws TronZapException
+     */
+    public function stopSubscription(?string $id = null, ?string $externalId = null): array
+    {
+        return $this->request('POST', '/v1/subscription/stop', self::idParams($id, $externalId));
+    }
+
+    /**
+     * Get subscription history
+     *
+     * Items carry the usage counters transactions_used, energy_used and total_price instead of params.
+     *
+     * @param int $page Page number
+     * @param int $perPage Items per page, at most 50
+     * @param string|null $status Filter by status (new, pending, error, active, stopped, expired)
+     * @return array<mixed> Subscription history data
+     * @throws TronZapException
+     */
+    public function getSubscriptionHistory(int $page = 1, int $perPage = 10, ?string $status = null): array
+    {
+        $params = [
+            'page' => self::atLeastOne($page, 1),
+            'per_page' => self::atLeastOne($perPage, 10)
+        ];
+
+        if ($status !== null && $status !== '') {
+            $params['status'] = $status;
+        }
+
+        return $this->request('POST', '/v1/subscriptions/history', $params);
     }
 
     /**
@@ -532,6 +637,26 @@ class Client
     {
         if ($externalId !== null && $externalId !== '') {
             $params['external_id'] = $externalId;
+        }
+
+        return $params;
+    }
+
+    /**
+     * @return array<string, string>
+     * @throws InvalidRequestException
+     */
+    private static function idParams(?string $id, ?string $externalId): array
+    {
+        $params = [];
+        if ($id !== null && $id !== '') {
+            $params['id'] = $id;
+        }
+        if ($externalId !== null && $externalId !== '') {
+            $params['external_id'] = $externalId;
+        }
+        if ($params === []) {
+            throw new InvalidRequestException('either id or externalId is required');
         }
 
         return $params;

@@ -204,6 +204,86 @@ final class RequestTest extends ServerTestCase
                 '/v1/aml-checks/history',
                 ['page' => 1, 'per_page' => 10],
             ],
+            'getSubscriptions' => [fn (Client $c) => $c->getSubscriptions(), '/v1/subscriptions', []],
+            'startSubscription' => [
+                fn (Client $c) => $c->startSubscription('unlimited_energy', $address),
+                '/v1/subscription/start',
+                [
+                    'subscription_id' => 'unlimited_energy',
+                    'params' => ['address' => $address, 'duration' => 0, 'transactions_limit' => 0],
+                ],
+            ],
+            'startSubscription full' => [
+                fn (Client $c) => $c->startSubscription('unlimited_energy', $address, 30, 100, 'sub-1', true),
+                '/v1/subscription/start',
+                [
+                    'subscription_id' => 'unlimited_energy',
+                    'external_id' => 'sub-1',
+                    'params' => [
+                        'address' => $address,
+                        'duration' => 30,
+                        'transactions_limit' => 100,
+                        'activate_address' => true,
+                    ],
+                ],
+            ],
+            'startSubscription external id "0"' => [
+                fn (Client $c) => $c->startSubscription('unlimited_energy', $address, 30, 0, '0'),
+                '/v1/subscription/start',
+                [
+                    'subscription_id' => 'unlimited_energy',
+                    'external_id' => '0',
+                    'params' => ['address' => $address, 'duration' => 30, 'transactions_limit' => 0],
+                ],
+            ],
+            'startSubscription empty external id' => [
+                fn (Client $c) => $c->startSubscription('unlimited_energy', $address, 30, 0, ''),
+                '/v1/subscription/start',
+                [
+                    'subscription_id' => 'unlimited_energy',
+                    'params' => ['address' => $address, 'duration' => 30, 'transactions_limit' => 0],
+                ],
+            ],
+            'checkSubscription by id' => [
+                fn (Client $c) => $c->checkSubscription('sub-id-1'),
+                '/v1/subscription/check',
+                ['id' => 'sub-id-1'],
+            ],
+            'checkSubscription by external id' => [
+                fn (Client $c) => $c->checkSubscription(null, 'sub-1'),
+                '/v1/subscription/check',
+                ['external_id' => 'sub-1'],
+            ],
+            'checkSubscription by external id "0"' => [
+                fn (Client $c) => $c->checkSubscription(null, '0'),
+                '/v1/subscription/check',
+                ['external_id' => '0'],
+            ],
+            'stopSubscription with both ids' => [
+                fn (Client $c) => $c->stopSubscription('sub-id-1', 'sub-1'),
+                '/v1/subscription/stop',
+                ['id' => 'sub-id-1', 'external_id' => 'sub-1'],
+            ],
+            'stopSubscription by external id' => [
+                fn (Client $c) => $c->stopSubscription('', 'sub-1'),
+                '/v1/subscription/stop',
+                ['external_id' => 'sub-1'],
+            ],
+            'getSubscriptionHistory' => [
+                fn (Client $c) => $c->getSubscriptionHistory(),
+                '/v1/subscriptions/history',
+                ['page' => 1, 'per_page' => 10],
+            ],
+            'getSubscriptionHistory filtered' => [
+                fn (Client $c) => $c->getSubscriptionHistory(2, 50, 'active'),
+                '/v1/subscriptions/history',
+                ['page' => 2, 'per_page' => 50, 'status' => 'active'],
+            ],
+            'getSubscriptionHistory paging 0 and empty status' => [
+                fn (Client $c) => $c->getSubscriptionHistory(0, -1, ''),
+                '/v1/subscriptions/history',
+                ['page' => 1, 'per_page' => 10],
+            ],
         ];
     }
 
@@ -302,6 +382,18 @@ final class RequestTest extends ServerTestCase
             'aml check without network' => [fn (Client $c) => $c->createAmlCheck('address', '', $address)],
             'aml check without address' => [fn (Client $c) => $c->createAmlCheck('address', 'TRX', '')],
             'aml status without id' => [fn (Client $c) => $c->checkAmlStatus('')],
+            'subscription without plan' => [fn (Client $c) => $c->startSubscription('', $address)],
+            'subscription without address' => [fn (Client $c) => $c->startSubscription('unlimited_energy', '')],
+            'subscription with negative days' => [
+                fn (Client $c) => $c->startSubscription('unlimited_energy', $address, -1),
+            ],
+            'subscription with negative limit' => [
+                fn (Client $c) => $c->startSubscription('unlimited_energy', $address, 30, -1),
+            ],
+            'checkSubscription without ids' => [fn (Client $c) => $c->checkSubscription()],
+            'checkSubscription with empty ids' => [fn (Client $c) => $c->checkSubscription('', '')],
+            'stopSubscription without ids' => [fn (Client $c) => $c->stopSubscription()],
+            'stopSubscription with empty ids' => [fn (Client $c) => $c->stopSubscription(null, '')],
             'external id that is not UTF-8' => [
                 fn (Client $c) => $c->createAddressActivationTransaction($address, "\xB1\x31"),
             ],

@@ -117,6 +117,38 @@ try {
 - `createAmlCheck(type, network, address, hash, direction)` - Создание AML-проверки
 - `checkAmlStatus(id)` - Получение статуса AML-проверки
 - `getAmlHistory(page, perPage, status)` - История AML-проверок
+- `getSubscriptions()` - Планы подписок и цены, ключ — ID подписки
+- `startSubscription(subscriptionId, address, durationDays, transactionsLimit, externalId, activateAddress)` - Подписать адрес на план
+- `checkSubscription(id, externalId)` - Статус подписки по id или внешнему id
+- `stopSubscription(id, externalId)` - Остановить подписку
+- `getSubscriptionHistory(page, perPage, status)` - История подписок
+
+## Подписки
+
+Подписка обеспечивает адрес энергией для каждой транзакции, пока её не остановят или не закончатся её дни или транзакции. `getSubscriptions()` возвращает планы с ID подписки в качестве ключа, в том порядке, в котором их перечисляет API. Передайте этот ключ, например `'unlimited_energy'`, в `startSubscription`, а не числовой `id` плана. При запуске подписки списывается начальная цена плана.
+
+```php
+foreach ($client->getSubscriptions() as $subscriptionId => $plan) {
+    echo "$subscriptionId: initial {$plan['initial_price']}, {$plan['price']} per transaction\n";
+}
+
+$subscription = $client->startSubscription(
+    'unlimited_energy', // Ключ плана из getSubscriptions()
+    'TRX_ADDRESS',      // Адрес TRON
+    30,                 // Длительность в днях, 0 — без ограничения по времени
+    0,                  // Лимит транзакций, 0 — без ограничения
+    'subscription-42',  // Внешний ID (необязательно)
+    false               // Активировать адрес (необязательно)
+);
+
+$subscription = $client->checkSubscription(null, 'subscription-42');
+
+$subscription = $client->stopSubscription($subscription['id']);
+
+$history = $client->getSubscriptionHistory(1, 10, 'active');
+```
+
+Запуск, проверка и остановка возвращают подписку с её `params`, а элементы истории вместо них содержат счётчики использования `transactions_used`, `energy_used` и `total_price`. Подписку с лимитом транзакций остановить нельзя (`CANNOT_STOP_SUBSCRIPTION`).
 
 ## Обработка ошибок
 
@@ -196,23 +228,23 @@ try {
 
 ### Коды ошибок API
 
-| Код | Константа                   | Описание                                                        |
-|-----|-----------------------------|-----------------------------------------------------------------|
-| 1   | `AUTH_ERROR`                | Ошибка аутентификации — неверный API-токен или подпись          |
-| 2   | `INVALID_SERVICE_OR_PARAMS` | Некорректный сервис или параметры                               |
-| 5   | `WALLET_NOT_FOUND`          | Внутренний кошелёк не найден. Обратитесь в поддержку.           |
-| 6   | `INSUFFICIENT_FUNDS`        | Недостаточно средств                                            |
-| 10  | `INVALID_TRON_ADDRESS`      | Некорректный адрес TRON                                         |
-| 11  | `INVALID_ENERGY_AMOUNT`     | Некорректное количество энергии                                 |
-| 12  | `INVALID_DURATION`          | Некорректная длительность                                       |
-| 20  | `TRANSACTION_NOT_FOUND`     | Транзакция/подписка не найдена (алиас: `TRANSACTION_NOT_FOUND`) |
-| 21  | `CANNOT_STOP_SUBSCRIPTION`  | Невозможно остановить подписку                                  |
-| 24  | `ADDRESS_NOT_ACTIVATED`     | Адрес не активирован                                            |
-| 25  | `ADDRESS_ALREADY_ACTIVATED` | Адрес уже активирован                                           |
-| 30  | `AML_CHECK_NOT_FOUND`       | AML-проверка не найдена                                         |
-| 35  | `SERVICE_NOT_AVAILABLE`     | Сервис временно недоступен                                      |
-| 50  | `INVALID_BANDWIDTH_AMOUNT`  | Некорректное количество bandwidth                               |
-| 500 | `INTERNAL_SERVER_ERROR`     | Внутренняя ошибка сервера — обратитесь в поддержку              |
+| Код | Константа                   | Описание                                                              |
+|-----|-----------------------------|-----------------------------------------------------------------------|
+| 1   | `AUTH_ERROR`                | Ошибка аутентификации — неверный API-токен или подпись                |
+| 2   | `INVALID_SERVICE_OR_PARAMS` | Некорректный сервис или параметры                                     |
+| 5   | `WALLET_NOT_FOUND`          | Внутренний кошелёк не найден. Обратитесь в поддержку.                 |
+| 6   | `INSUFFICIENT_FUNDS`        | Недостаточно средств                                                  |
+| 10  | `INVALID_TRON_ADDRESS`      | Некорректный адрес TRON, или у адреса уже есть активная подписка      |
+| 11  | `INVALID_ENERGY_AMOUNT`     | Некорректное количество энергии                                       |
+| 12  | `INVALID_DURATION`          | Некорректная длительность                                             |
+| 20  | `TRANSACTION_NOT_FOUND`     | Транзакция/подписка не найдена (алиас: `TRANSACTION_NOT_FOUND`)       |
+| 21  | `CANNOT_STOP_SUBSCRIPTION`  | Невозможно остановить подписку, например, у неё есть лимит транзакций |
+| 24  | `ADDRESS_NOT_ACTIVATED`     | Адрес не активирован                                                  |
+| 25  | `ADDRESS_ALREADY_ACTIVATED` | Адрес уже активирован                                                 |
+| 30  | `AML_CHECK_NOT_FOUND`       | AML-проверка не найдена                                               |
+| 35  | `SERVICE_NOT_AVAILABLE`     | Сервис временно недоступен                                            |
+| 50  | `INVALID_BANDWIDTH_AMOUNT`  | Некорректное количество bandwidth                                     |
+| 500 | `INTERNAL_SERVER_ERROR`     | Внутренняя ошибка сервера — обратитесь в поддержку                    |
 
 ## Разработка
 

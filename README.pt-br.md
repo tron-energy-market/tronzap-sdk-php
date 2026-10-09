@@ -117,6 +117,38 @@ try {
 - `createAmlCheck(type, network, address, hash, direction)` - Criar nova verificação AML
 - `checkAmlStatus(id)` - Consultar status de verificação AML
 - `getAmlHistory(page, perPage, status)` - Listar histórico de verificações AML
+- `getSubscriptions()` - Listar planos de assinatura e preços, com o ID da assinatura como chave
+- `startSubscription(subscriptionId, address, durationDays, transactionsLimit, externalId, activateAddress)` - Assinar um plano para um endereço
+- `checkSubscription(id, externalId)` - Consultar o status de uma assinatura, por id ou id externo
+- `stopSubscription(id, externalId)` - Parar uma assinatura
+- `getSubscriptionHistory(page, perPage, status)` - Listar histórico de assinaturas
+
+## Assinaturas
+
+Uma assinatura mantém um endereço abastecido de energia para cada transação até ser parada ou esgotar seus dias ou transações. `getSubscriptions()` retorna os planos com o ID da assinatura como chave, na ordem em que a API os lista. Passe essa chave, como `'unlimited_energy'`, para `startSubscription`, não o `id` numérico do plano. Iniciar uma assinatura cobra o preço inicial do plano.
+
+```php
+foreach ($client->getSubscriptions() as $subscriptionId => $plan) {
+    echo "$subscriptionId: initial {$plan['initial_price']}, {$plan['price']} per transaction\n";
+}
+
+$subscription = $client->startSubscription(
+    'unlimited_energy', // Chave do plano de getSubscriptions()
+    'TRX_ADDRESS',      // Endereço TRON
+    30,                 // Duração em dias, 0 para não limitar o tempo
+    0,                  // Limite de transações, 0 para não limitar
+    'subscription-42',  // ID externo (opcional)
+    false               // Ativar endereço (opcional)
+);
+
+$subscription = $client->checkSubscription(null, 'subscription-42');
+
+$subscription = $client->stopSubscription($subscription['id']);
+
+$history = $client->getSubscriptionHistory(1, 10, 'active');
+```
+
+Iniciar, consultar e parar retornam a assinatura com seus `params`; os itens do histórico trazem em vez disso os contadores de uso `transactions_used`, `energy_used` e `total_price`. Uma assinatura com limite de transações não pode ser parada (`CANNOT_STOP_SUBSCRIPTION`).
 
 ## Tratamento de erros
 
@@ -196,23 +228,23 @@ try {
 
 ### Códigos de erro da API
 
-| Código | Constante                   | Descrição                                                            |
-|--------|-----------------------------|----------------------------------------------------------------------|
-| 1      | `AUTH_ERROR`                | Erro de autenticação — token API ou assinatura inválidos             |
-| 2      | `INVALID_SERVICE_OR_PARAMS` | Serviço ou parâmetros inválidos                                      |
-| 5      | `WALLET_NOT_FOUND`          | Carteira interna não encontrada. Contate o suporte.                  |
-| 6      | `INSUFFICIENT_FUNDS`        | Saldo insuficiente                                                   |
-| 10     | `INVALID_TRON_ADDRESS`      | Endereço TRON inválido                                               |
-| 11     | `INVALID_ENERGY_AMOUNT`     | Quantidade de energia inválida                                       |
-| 12     | `INVALID_DURATION`          | Duração inválida                                                     |
-| 20     | `TRANSACTION_NOT_FOUND`     | Transação/assinatura não encontrada (alias: `TRANSACTION_NOT_FOUND`) |
-| 21     | `CANNOT_STOP_SUBSCRIPTION`  | Não é possível parar a assinatura                                    |
-| 24     | `ADDRESS_NOT_ACTIVATED`     | Endereço não ativado                                                 |
-| 25     | `ADDRESS_ALREADY_ACTIVATED` | Endereço já ativado                                                  |
-| 30     | `AML_CHECK_NOT_FOUND`       | Verificação AML não encontrada                                       |
-| 35     | `SERVICE_NOT_AVAILABLE`     | Serviço não disponível                                               |
-| 50     | `INVALID_BANDWIDTH_AMOUNT`  | Quantidade de bandwidth inválida                                     |
-| 500    | `INTERNAL_SERVER_ERROR`     | Erro interno do servidor — contate o suporte                         |
+| Código | Constante                   | Descrição                                                              |
+|--------|-----------------------------|------------------------------------------------------------------------|
+| 1      | `AUTH_ERROR`                | Erro de autenticação — token API ou assinatura inválidos               |
+| 2      | `INVALID_SERVICE_OR_PARAMS` | Serviço ou parâmetros inválidos                                        |
+| 5      | `WALLET_NOT_FOUND`          | Carteira interna não encontrada. Contate o suporte.                    |
+| 6      | `INSUFFICIENT_FUNDS`        | Saldo insuficiente                                                     |
+| 10     | `INVALID_TRON_ADDRESS`      | Endereço TRON inválido, ou o endereço já tem uma assinatura ativa      |
+| 11     | `INVALID_ENERGY_AMOUNT`     | Quantidade de energia inválida                                         |
+| 12     | `INVALID_DURATION`          | Duração inválida                                                       |
+| 20     | `TRANSACTION_NOT_FOUND`     | Transação/assinatura não encontrada (alias: `TRANSACTION_NOT_FOUND`)   |
+| 21     | `CANNOT_STOP_SUBSCRIPTION`  | Não é possível parar a assinatura, p. ex. ela tem limite de transações |
+| 24     | `ADDRESS_NOT_ACTIVATED`     | Endereço não ativado                                                   |
+| 25     | `ADDRESS_ALREADY_ACTIVATED` | Endereço já ativado                                                    |
+| 30     | `AML_CHECK_NOT_FOUND`       | Verificação AML não encontrada                                         |
+| 35     | `SERVICE_NOT_AVAILABLE`     | Serviço não disponível                                                 |
+| 50     | `INVALID_BANDWIDTH_AMOUNT`  | Quantidade de bandwidth inválida                                       |
+| 500    | `INTERNAL_SERVER_ERROR`     | Erro interno do servidor — contate o suporte                           |
 
 ## Desenvolvimento
 

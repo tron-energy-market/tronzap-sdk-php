@@ -117,6 +117,38 @@ try {
 - `createAmlCheck(type, network, address, hash, direction)` - Crea una nueva verificación AML
 - `checkAmlStatus(id)` - Consulta el estado de una verificación AML
 - `getAmlHistory(page, perPage, status)` - Obtiene historial de verificaciones AML
+- `getSubscriptions()` - Obtiene planes de suscripción y precios, con el ID de suscripción como clave
+- `startSubscription(subscriptionId, address, durationDays, transactionsLimit, externalId, activateAddress)` - Suscribe una dirección a un plan
+- `checkSubscription(id, externalId)` - Consulta el estado de una suscripción, por id o id externo
+- `stopSubscription(id, externalId)` - Detiene una suscripción
+- `getSubscriptionHistory(page, perPage, status)` - Obtiene historial de suscripciones
+
+## Suscripciones
+
+Una suscripción mantiene una dirección abastecida de energía para cada transacción hasta que se detiene o se agotan sus días o transacciones. `getSubscriptions()` devuelve los planes con su ID de suscripción como clave, en el orden en que los lista la API. Pase esa clave, como `'unlimited_energy'`, a `startSubscription`, no el `id` numérico del plan. Iniciar una suscripción cobra el precio inicial del plan.
+
+```php
+foreach ($client->getSubscriptions() as $subscriptionId => $plan) {
+    echo "$subscriptionId: initial {$plan['initial_price']}, {$plan['price']} per transaction\n";
+}
+
+$subscription = $client->startSubscription(
+    'unlimited_energy', // Clave del plan de getSubscriptions()
+    'TRX_ADDRESS',      // Dirección TRON
+    30,                 // Duración en días, 0 para no limitar el tiempo
+    0,                  // Límite de transacciones, 0 para no limitar
+    'subscription-42',  // ID externo (opcional)
+    false               // Activar dirección (opcional)
+);
+
+$subscription = $client->checkSubscription(null, 'subscription-42');
+
+$subscription = $client->stopSubscription($subscription['id']);
+
+$history = $client->getSubscriptionHistory(1, 10, 'active');
+```
+
+Iniciar, consultar y detener devuelven la suscripción con sus `params`; los elementos del historial traen en su lugar los contadores de uso `transactions_used`, `energy_used` y `total_price`. Una suscripción con límite de transacciones no se puede detener (`CANNOT_STOP_SUBSCRIPTION`).
 
 ## Gestión de errores
 
@@ -196,23 +228,23 @@ try {
 
 ### Códigos de error de la API
 
-| Código | Constante                      | Descripción                                                            |
-|--------|--------------------------------|------------------------------------------------------------------------|
-| 1      | `AUTH_ERROR`                   | Error de autenticación — token API o firma inválidos                   |
-| 2      | `INVALID_SERVICE_OR_PARAMS`    | Servicio o parámetros inválidos                                        |
-| 5      | `WALLET_NOT_FOUND`             | Billetera interna no encontrada. Contacta a soporte.                   |
-| 6      | `INSUFFICIENT_FUNDS`           | Fondos insuficientes                                                   |
-| 10     | `INVALID_TRON_ADDRESS`         | Dirección TRON inválida                                                |
-| 11     | `INVALID_ENERGY_AMOUNT`        | Cantidad de energía inválida                                           |
-| 12     | `INVALID_DURATION`             | Duración inválida                                                      |
-| 20     | `TRANSACTION_NOT_FOUND`        | Transacción/suscripción no encontrada (alias: `TRANSACTION_NOT_FOUND`) |
-| 21     | `CANNOT_STOP_SUBSCRIPTION`     | No se puede detener la suscripción                                     |
-| 24     | `ADDRESS_NOT_ACTIVATED`        | Dirección no activada                                                  |
-| 25     | `ADDRESS_ALREADY_ACTIVATED`    | Dirección ya activada                                                  |
-| 30     | `AML_CHECK_NOT_FOUND`          | Verificación AML no encontrada                                         |
-| 35     | `SERVICE_NOT_AVAILABLE`        | Servicio no disponible                                                 |
-| 50     | `INVALID_BANDWIDTH_AMOUNT`     | Cantidad de ancho de banda inválida                                    |
-| 500    | `INTERNAL_SERVER_ERROR`        | Error interno del servidor — contacta a soporte                        |
+| Código | Constante                   | Descripción                                                              |
+|--------|-----------------------------|--------------------------------------------------------------------------|
+| 1      | `AUTH_ERROR`                | Error de autenticación — token API o firma inválidos                     |
+| 2      | `INVALID_SERVICE_OR_PARAMS` | Servicio o parámetros inválidos                                          |
+| 5      | `WALLET_NOT_FOUND`          | Billetera interna no encontrada. Contacta a soporte.                     |
+| 6      | `INSUFFICIENT_FUNDS`        | Fondos insuficientes                                                     |
+| 10     | `INVALID_TRON_ADDRESS`      | Dirección TRON inválida, o la dirección ya tiene una suscripción activa  |
+| 11     | `INVALID_ENERGY_AMOUNT`     | Cantidad de energía inválida                                             |
+| 12     | `INVALID_DURATION`          | Duración inválida                                                        |
+| 20     | `TRANSACTION_NOT_FOUND`     | Transacción/suscripción no encontrada (alias: `TRANSACTION_NOT_FOUND`)   |
+| 21     | `CANNOT_STOP_SUBSCRIPTION`  | No se puede detener la suscripción, p. ej. tiene límite de transacciones |
+| 24     | `ADDRESS_NOT_ACTIVATED`     | Dirección no activada                                                    |
+| 25     | `ADDRESS_ALREADY_ACTIVATED` | Dirección ya activada                                                    |
+| 30     | `AML_CHECK_NOT_FOUND`       | Verificación AML no encontrada                                           |
+| 35     | `SERVICE_NOT_AVAILABLE`     | Servicio no disponible                                                   |
+| 50     | `INVALID_BANDWIDTH_AMOUNT`  | Cantidad de ancho de banda inválida                                      |
+| 500    | `INTERNAL_SERVER_ERROR`     | Error interno del servidor — contacta a soporte                          |
 
 ## Desarrollo
 

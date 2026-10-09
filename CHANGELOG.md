@@ -6,8 +6,23 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Subscriptions: `getSubscriptions`, `startSubscription`, `checkSubscription`, `stopSubscription` and
+  `getSubscriptionHistory`. Like the other methods they return the API result as an array: `getSubscriptions` returns
+  the plans keyed by subscription ID, such as `unlimited_energy`, in the order the API lists them, and an empty array
+  when there are none. `startSubscription` takes the duration in days and a transactions limit, where 0 means no
+  limit, and throws `InvalidRequestException` before sending when the plan or address is empty or a limit is negative.
+  `checkSubscription` and `stopSubscription` need an `id` or an `externalId`, like `checkTransaction`.
+- `examples/basic-usage.php` lists the subscription plans and history, checks the subscription in
+  `TRONZAP_SUBSCRIPTION_ID`, and with purchases allowed and `TRONZAP_SUBSCRIPTION_PLAN` set starts a one-day
+  subscription and stops it.
+
 ### Changed
 
+- The descriptions of error codes 10 (`INVALID_TRON_ADDRESS`), which the API also returns when the address already
+  has an active subscription, and 21 (`CANNOT_STOP_SUBSCRIPTION`), returned for a subscription with a transactions
+  limit.
 - The README and `examples/basic-usage.php` read the API's `amount`, `min_amount` and `max_amount` fields instead of
   the deprecated `energy`, `min_energy` and `max_energy`.
 

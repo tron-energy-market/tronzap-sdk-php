@@ -11,12 +11,18 @@
  *     export TRONZAP_TO_ADDRESS=TRON_ADDRESS           # optional, with FROM_ADDRESS
  *     export TRONZAP_TRANSACTION_ID=id                 # optional
  *     export TRONZAP_AML_CHECK_ID=id                   # optional
+ *     export TRONZAP_SUBSCRIPTION_ID=id                # optional
  *     composer install
  *     php examples/basic-usage.php
  *
  * Setting TRONZAP_ALLOW_PURCHASES=1 additionally exercises the endpoints that create transactions and AML checks.
  * Those DEBIT THE ACCOUNT BALANCE. It is meant for verifying an integration against a development environment, and
  * it also needs TRONZAP_ADDRESS.
+ *
+ * Setting TRONZAP_SUBSCRIPTION_PLAN as well starts a one-day subscription to that plan for TRONZAP_ADDRESS and stops
+ * it straight away. Starting one charges the plan's initial price.
+ *
+ *     export TRONZAP_SUBSCRIPTION_PLAN=unlimited_energy
  */
 
 declare(strict_types=1);
@@ -74,6 +80,23 @@ function printTransaction(array $transaction): void
         field($transaction, 'status'),
         field($transaction, 'amount'),
         field($transaction, 'created_at')
+    );
+}
+
+/**
+ * @param array<mixed> $subscription
+ */
+function printSubscription(array $subscription): void
+{
+    printf(
+        "  %s %s %s, address %s, created %s, expires %s, stopped %s\n",
+        field($subscription, 'id'),
+        field($subscription, 'subscription_id'),
+        field($subscription, 'status'),
+        field($subscription, 'address'),
+        field($subscription, 'created_at'),
+        field($subscription, 'expire_at'),
+        field($subscription, 'stopped_at')
     );
 }
 
@@ -163,6 +186,42 @@ function main(): int
         );
     });
 
+    $step('getSubscriptions', static function () use ($client): void {
+        foreach (array_filter($client->getSubscriptions(), 'is_array') as $key => $plan) {
+            printf(
+                "  %s (%s): activation %s, initial %s, %s per transaction, %s transaction(s), %s day(s)\n",
+                $key,
+                field($plan, 'name'),
+                field($plan, 'activation_fee'),
+                field($plan, 'initial_price'),
+                field($plan, 'price'),
+                field($plan, 'transactions_limit'),
+                field($plan, 'duration_days')
+            );
+        }
+    });
+
+    $step('getSubscriptionHistory', static function () use ($client): void {
+        $history = $client->getSubscriptionHistory(1, 3);
+        printf(
+            "  page %s, %d of %s subscription(s)\n",
+            field($history, 'page'),
+            count(rows($history, 'items')),
+            field($history, 'total')
+        );
+        foreach (rows($history, 'items') as $item) {
+            printf(
+                "  %s %s %s, used %s, energy %s, charged %s\n",
+                field($item, 'id'),
+                field($item, 'subscription_id'),
+                field($item, 'status'),
+                field($item, 'transactions_used'),
+                field($item, 'energy_used'),
+                field($item, 'total_price')
+            );
+        }
+    });
+
     $address = env('TRONZAP_ADDRESS');
 
     $optionalStep('getAddressInfo', $address, static function (string $value) use ($client): void {
@@ -213,6 +272,11 @@ function main(): int
         printf("  %s, risk %s\n", field($check, 'status'), $risk === '-' ? 'not scored yet' : $risk);
     });
 
+    $subscriptionId = env('TRONZAP_SUBSCRIPTION_ID');
+    $optionalStep('checkSubscription', $subscriptionId, static function (string $value) use ($client): void {
+        printSubscription($client->checkSubscription($value));
+    });
+
     if (env('TRONZAP_ALLOW_PURCHASES') !== '1') {
         echo "\nSkipping purchases: set TRONZAP_ALLOW_PURCHASES=1 to create transactions (debits the balance)\n";
     } elseif ($address === null) {
@@ -250,6 +314,21 @@ function main(): int
             $check = $client->createAmlCheck('address', 'TRX', $address);
             printf("  AML check %s is %s\n", field($check, 'id'), field($check, 'status'));
         });
+
+        $plan = env('TRONZAP_SUBSCRIPTION_PLAN');
+        $optionalStep(
+            'startSubscription, checkSubscription, stopSubscription',
+            $plan,
+            static function (string $value) use ($client, $address, $runId): void {
+                $subscription = $client->startSubscription($value, $address, 1, 0, "$runId-subscription");
+                printSubscription($subscription);
+                try {
+                    printSubscription($client->checkSubscription(null, "$runId-subscription"));
+                } finally {
+                    printSubscription($client->stopSubscription(field($subscription, 'id')));
+                }
+            }
+        );
     }
 
     if ($failed !== []) {

@@ -119,6 +119,38 @@ try {
 - `createAmlCheck(type, network, address, hash, direction)` - Create a new AML check
 - `checkAmlStatus(id)` - Get status for an AML check
 - `getAmlHistory(page, perPage, status)` - Get AML checks history
+- `getSubscriptions()` - Get subscription plans and prices, keyed by subscription ID
+- `startSubscription(subscriptionId, address, durationDays, transactionsLimit, externalId, activateAddress)` - Subscribe an address to a plan
+- `checkSubscription(id, externalId)` - Get status of a subscription, by id or external id
+- `stopSubscription(id, externalId)` - Stop a subscription
+- `getSubscriptionHistory(page, perPage, status)` - Get subscription history
+
+## Subscriptions
+
+A subscription keeps an address supplied with energy for every transaction until it is stopped or runs out of days or transactions. `getSubscriptions()` returns the plans keyed by their subscription ID, in the order the API lists them. Pass that key, such as `'unlimited_energy'`, to `startSubscription`, not the plan's numeric `id`. Starting a subscription charges the plan's initial price.
+
+```php
+foreach ($client->getSubscriptions() as $subscriptionId => $plan) {
+    echo "$subscriptionId: initial {$plan['initial_price']}, {$plan['price']} per transaction\n";
+}
+
+$subscription = $client->startSubscription(
+    'unlimited_energy', // Plan key from getSubscriptions()
+    'TRX_ADDRESS',      // TRON wallet address
+    30,                 // Duration in days, 0 for no time limit
+    0,                  // Transactions limit, 0 for no limit
+    'subscription-42',  // External ID (optional)
+    false               // Activate address (optional)
+);
+
+$subscription = $client->checkSubscription(null, 'subscription-42');
+
+$subscription = $client->stopSubscription($subscription['id']);
+
+$history = $client->getSubscriptionHistory(1, 10, 'active');
+```
+
+Start, check and stop return the subscription with its `params`; the history items carry the usage counters `transactions_used`, `energy_used` and `total_price` instead. A subscription with a transactions limit cannot be stopped (`CANNOT_STOP_SUBSCRIPTION`).
 
 ## Error Handling
 
@@ -198,23 +230,23 @@ try {
 
 ### API Error Codes
 
-| Code | Constant                       | Description                                                         |
-|------|--------------------------------|---------------------------------------------------------------------|
-| 1    | `AUTH_ERROR`                   | Authentication error – Invalid API token or signature               |
-| 2    | `INVALID_SERVICE_OR_PARAMS`    | Invalid service or parameters                                       |
-| 5    | `WALLET_NOT_FOUND`             | Internal wallet not found. Contact support.                         |
-| 6    | `INSUFFICIENT_FUNDS`           | Insufficient funds                                                  |
-| 10   | `INVALID_TRON_ADDRESS`         | Invalid TRON address                                                |
-| 11   | `INVALID_ENERGY_AMOUNT`        | Invalid energy amount                                               |
-| 12   | `INVALID_DURATION`             | Invalid duration                                                    |
-| 20   | `TRANSACTION_NOT_FOUND`        | Transaction/subscription not found (alias: `TRANSACTION_NOT_FOUND`) |
-| 21   | `CANNOT_STOP_SUBSCRIPTION`     | Cannot stop subscription                                            |
-| 24   | `ADDRESS_NOT_ACTIVATED`        | Address not activated                                               |
-| 25   | `ADDRESS_ALREADY_ACTIVATED`    | Address already activated                                           |
-| 30   | `AML_CHECK_NOT_FOUND`          | AML check not found                                                 |
-| 35   | `SERVICE_NOT_AVAILABLE`        | Service not available                                               |
-| 50   | `INVALID_BANDWIDTH_AMOUNT`     | Invalid bandwidth amount                                            |
-| 500  | `INTERNAL_SERVER_ERROR`        | Internal server error – Contact support                             |
+| Code | Constant                    | Description                                                             |
+|------|-----------------------------|-------------------------------------------------------------------------|
+| 1    | `AUTH_ERROR`                | Authentication error – Invalid API token or signature                   |
+| 2    | `INVALID_SERVICE_OR_PARAMS` | Invalid service or parameters                                           |
+| 5    | `WALLET_NOT_FOUND`          | Internal wallet not found. Contact support.                             |
+| 6    | `INSUFFICIENT_FUNDS`        | Insufficient funds                                                      |
+| 10   | `INVALID_TRON_ADDRESS`      | Invalid TRON address, or the address already has an active subscription |
+| 11   | `INVALID_ENERGY_AMOUNT`     | Invalid energy amount                                                   |
+| 12   | `INVALID_DURATION`          | Invalid duration                                                        |
+| 20   | `TRANSACTION_NOT_FOUND`     | Transaction/subscription not found (alias: `TRANSACTION_NOT_FOUND`)     |
+| 21   | `CANNOT_STOP_SUBSCRIPTION`  | Cannot stop subscription, e.g. it has a transactions limit              |
+| 24   | `ADDRESS_NOT_ACTIVATED`     | Address not activated                                                   |
+| 25   | `ADDRESS_ALREADY_ACTIVATED` | Address already activated                                               |
+| 30   | `AML_CHECK_NOT_FOUND`       | AML check not found                                                     |
+| 35   | `SERVICE_NOT_AVAILABLE`     | Service not available                                                   |
+| 50   | `INVALID_BANDWIDTH_AMOUNT`  | Invalid bandwidth amount                                                |
+| 500  | `INTERNAL_SERVER_ERROR`     | Internal server error – Contact support                                 |
 
 ## Development
 
