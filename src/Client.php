@@ -301,9 +301,14 @@ class Client
      *
      * @param string $type AML service type: address or hash
      * @param string $network Network code (e.g. TRX, BTC, ETH)
-     * @param string $address Wallet address
+     * @param string $address For type=address, the address to screen; for type=hash, the recipient address of the
+     *                        transaction, where the funds were received
      * @param string|null $hash Transaction hash when type=hash
-     * @param string|null $direction Transaction direction (deposit or withdrawal) when type=hash
+     * @param string|null $direction For type=hash, which side of the transaction you are on: deposit if the funds
+     *                               were sent to your address (address is yours, the sender is scored), withdrawal
+     *                               if you sent them (address is the external recipient's, the recipient is scored).
+     *                               The risk is scored for the counterparty. When omitted or empty for a hash check,
+     *                               the SDK sends deposit
      * @return array<mixed> AML check data
      * @throws TronZapException
      */
@@ -326,6 +331,10 @@ class Client
 
         if ($hash !== null) {
             $params['hash'] = $hash;
+        }
+
+        if ($type === 'hash' && ($direction === null || $direction === '')) {
+            $direction = 'deposit';
         }
 
         if ($direction !== null) {

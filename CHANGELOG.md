@@ -25,6 +25,11 @@ All notable changes to this project are documented in this file. The format is b
   limit.
 - The README and `examples/basic-usage.php` read the API's `amount`, `min_amount` and `max_amount` fields instead of
   the deprecated `energy`, `min_energy` and `max_energy`.
+- `createAmlCheck` sends `direction` `deposit` for a hash check when the direction is null or empty, instead of
+  leaving it out or sending an empty string. Address checks are unchanged.
+- The `createAmlCheck` PHPDoc and the README explain `address` and `direction` for a hash check: `address` is the
+  recipient address of the transaction, `deposit` means the funds were sent to your address and the sender is scored,
+  `withdrawal` means you sent them and the recipient is scored.
 
 ### Fixed
 

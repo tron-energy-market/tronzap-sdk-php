@@ -123,6 +123,8 @@ try {
 - `stopSubscription(id, externalId)` - Detiene una suscripción
 - `getSubscriptionHistory(page, perPage, status)` - Obtiene historial de suscripciones
 
+En una verificación por hash (`createAmlCheck('hash', ...)`), `address` es la dirección del destinatario de la transacción, donde se recibieron los fondos, y `direction` indica en qué lado estás: `deposit` si los fondos llegaron a tu dirección (`address` es tu dirección), `withdrawal` si los enviaste tú (`address` es la dirección del destinatario externo). El riesgo se calcula para la contraparte: el remitente en un deposit, el destinatario en un withdrawal. Si omites `direction` en una verificación por hash, el SDK envía `deposit`.
+
 ## Suscripciones
 
 Una suscripción mantiene una dirección abastecida de energía para cada transacción hasta que se detiene o se agotan sus días o transacciones. `getSubscriptions()` devuelve los planes con su ID de suscripción como clave, en el orden en que los lista la API. Pase esa clave, como `'unlimited_energy'`, a `startSubscription`, no el `id` numérico del plan. Iniciar una suscripción cobra el precio inicial del plan.

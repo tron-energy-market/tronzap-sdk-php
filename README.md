@@ -125,6 +125,8 @@ try {
 - `stopSubscription(id, externalId)` - Stop a subscription
 - `getSubscriptionHistory(page, perPage, status)` - Get subscription history
 
+For a hash check (`createAmlCheck('hash', ...)`), `address` is the recipient address of the transaction, where the funds were received, and `direction` says which side you are on: `deposit` if the funds were sent to your address (`address` is your address), `withdrawal` if you sent them (`address` is the external recipient's address). The risk is scored for the counterparty: the sender of a deposit, the recipient of a withdrawal. When you omit `direction` for a hash check, the SDK sends `deposit`.
+
 ## Subscriptions
 
 A subscription keeps an address supplied with energy for every transaction until it is stopped or runs out of days or transactions. `getSubscriptions()` returns the plans keyed by their subscription ID, in the order the API lists them. Pass that key, such as `'unlimited_energy'`, to `startSubscription`, not the plan's numeric `id`. Starting a subscription charges the plan's initial price.

@@ -171,6 +171,39 @@ final class RequestTest extends ServerTestCase
                     'direction' => 'deposit',
                 ],
             ],
+            'createAmlCheck hash without direction' => [
+                fn (Client $c) => $c->createAmlCheck('hash', 'TRX', $address, 'abc123'),
+                '/v1/aml-checks/new',
+                [
+                    'type' => 'hash',
+                    'network' => 'TRX',
+                    'address' => $address,
+                    'hash' => 'abc123',
+                    'direction' => 'deposit',
+                ],
+            ],
+            'createAmlCheck hash with empty direction' => [
+                fn (Client $c) => $c->createAmlCheck('hash', 'TRX', $address, 'abc123', ''),
+                '/v1/aml-checks/new',
+                [
+                    'type' => 'hash',
+                    'network' => 'TRX',
+                    'address' => $address,
+                    'hash' => 'abc123',
+                    'direction' => 'deposit',
+                ],
+            ],
+            'createAmlCheck hash withdrawal' => [
+                fn (Client $c) => $c->createAmlCheck('hash', 'TRX', $address, 'abc123', 'withdrawal'),
+                '/v1/aml-checks/new',
+                [
+                    'type' => 'hash',
+                    'network' => 'TRX',
+                    'address' => $address,
+                    'hash' => 'abc123',
+                    'direction' => 'withdrawal',
+                ],
+            ],
             'checkAmlStatus' => [
                 fn (Client $c) => $c->checkAmlStatus('aml-1'),
                 '/v1/aml-checks/check',
