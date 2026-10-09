@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-09
+
 ### Added
 
 - Subscriptions: `getSubscriptions`, `startSubscription`, `checkSubscription`, `stopSubscription` and
