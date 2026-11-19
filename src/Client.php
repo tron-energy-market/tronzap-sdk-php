@@ -25,7 +25,7 @@ use TronZap\Exception\UnauthorizedException;
 
 class Client
 {
-    public const VERSION = '1.6.0';
+    public const VERSION = '1.7.0';
 
     /**
      * @var non-empty-string Base API URL, default is https://api.tronzap.com

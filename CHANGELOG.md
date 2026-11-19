@@ -6,6 +6,32 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-19
+
+### Added
+
+- Bulk orders: `bulkCalculate`, `bulkCreate`, `bulkCheck`, `bulkHistory` and `bulkReport`. `bulkCalculate` takes the
+  rows as `['address' => ..., 'amount' => ...]` arrays and a duration, always orders energy, and throws
+  `InvalidRequestException` before sending when there are no rows; invalid rows are not checked by the SDK and come
+  back in `rejected` with their row number. `bulkReport` returns the CSV report as a string.
+- `verifyWebhookSignature` checks the `X-Signature` header of a bulk order webhook against the raw body.
+- `ApiException::getResult()` returns the data the API sends with an error, or `null`. Until now it was dropped, so
+  the new calculation of `BULK_PRICE_CHANGED`, the rejected rows of `BULK_NO_VALID_ITEMS` and the like could not be
+  read through the SDK.
+- `ApiException::getRetryAfter()` and `RateLimitException::getRetryAfter()` return the seconds to wait before
+  retrying, from the `Retry-After` header or the `retry_after` field, or `null` when the API sent neither.
+- Error code constants `BULK_NOT_FOUND` (90), `BULK_EXPIRED` (91), `BULK_PRICE_CHANGED` (92), `BULK_TOO_MANY_ITEMS`
+  (93), `BULK_NO_VALID_ITEMS` (94), `BULK_RESOURCE_NOT_SUPPORTED` (95), `PAYLOAD_TOO_LARGE` (96) and `RATE_LIMITED`
+  (429).
+- `examples/basic-usage.php` lists the bulk orders, calculates a bulk order for `TRONZAP_ADDRESS`, checks the order in
+  `TRONZAP_BULK_ID` and prints its report, and with purchases allowed starts a one-address bulk order.
+
+### Changed
+
+- The README documents that a rate limit reported by the API, HTTP 429 with a JSON body, is thrown as `ApiException`
+  with code `RATE_LIMITED`, as it always has been; `RateLimitException` is thrown only for an HTTP 429 without an API
+  body, such as one from a proxy.
+
 ## [1.6.0] - 2026-10-09
 
 ### Added
