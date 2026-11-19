@@ -69,6 +69,107 @@ final class ErrorTest extends ServerTestCase
         self::assertNull($error->getRequestId());
     }
 
+    public function testApiErrorKeepsItsResult(): void
+    {
+        self::$server->respond(200, [
+            'code' => 94,
+            'key' => 'bulk_no_valid_items',
+            'error' => 'No valid items',
+            'result' => ['rejected' => [['row' => 1, 'address' => 'abc', 'reason' => 'invalid_address']]],
+        ]);
+
+        $error = $this->catch(fn () => $this->client->getBalance());
+
+        self::assertInstanceOf(ApiException::class, $error);
+        self::assertSame(TronZapException::BULK_NO_VALID_ITEMS, $error->getCode());
+        self::assertSame(
+            ['rejected' => [['row' => 1, 'address' => 'abc', 'reason' => 'invalid_address']]],
+            $error->getResult()
+        );
+    }
+
+    /** @return array<string, array{mixed}> */
+    public static function absentResults(): array
+    {
+        return ['missing' => [null], 'string' => ['text'], 'number' => [1]];
+    }
+
+    /**
+     * @dataProvider absentResults
+     * @param mixed $result
+     */
+    public function testApiErrorWithoutAnObjectResult($result): void
+    {
+        $body = ['code' => 6, 'error' => 'Insufficient funds'];
+        if ($result !== null) {
+            $body['result'] = $result;
+        }
+        self::$server->respond(400, $body);
+
+        $error = $this->catch(fn () => $this->client->getBalance());
+
+        self::assertInstanceOf(ApiException::class, $error);
+        self::assertNull($error->getResult());
+        self::assertNull($error->getRetryAfter());
+    }
+
+    public function testRateLimitFromTheApiIsAnApiErrorWithRetryAfterFromTheHeader(): void
+    {
+        self::$server->respond(429, ['code' => 429, 'error' => 'Too Many Requests'], 0.0, ['Retry-After' => '17']);
+
+        $error = $this->catch(fn () => $this->client->getBalance());
+
+        self::assertSame(ApiException::class, get_class($error));
+        self::assertInstanceOf(ApiException::class, $error);
+        self::assertSame(TronZapException::RATE_LIMITED, $error->getCode());
+        self::assertSame(429, $error->getStatusCode());
+        self::assertSame(17, $error->getRetryAfter());
+    }
+
+    public function testRetryAfterFromTheBodyWhenTheHeaderIsMissing(): void
+    {
+        self::$server->respond(429, ['code' => 429, 'key' => 'rate_limit_exceeded', 'retry_after' => 42]);
+
+        $error = $this->catch(fn () => $this->client->getBalance());
+
+        self::assertInstanceOf(ApiException::class, $error);
+        self::assertSame(42, $error->getRetryAfter());
+    }
+
+    public function testRetryAfterAsAnHttpDate(): void
+    {
+        $date = gmdate('D, d M Y H:i:s', time() + 120) . ' GMT';
+        self::$server->respond(429, ['code' => 429], 0.0, ['Retry-After' => $date]);
+
+        $error = $this->catch(fn () => $this->client->getBalance());
+
+        self::assertInstanceOf(ApiException::class, $error);
+        $retryAfter = $error->getRetryAfter();
+        self::assertNotNull($retryAfter);
+        self::assertGreaterThanOrEqual(110, $retryAfter);
+        self::assertLessThanOrEqual(120, $retryAfter);
+    }
+
+    public function testRateLimitWithoutRetryAfter(): void
+    {
+        self::$server->respond(429, ['code' => 429, 'error' => 'Too Many Requests'], 0.0, ['Retry-After' => 'soon']);
+
+        $error = $this->catch(fn () => $this->client->getBalance());
+
+        self::assertInstanceOf(ApiException::class, $error);
+        self::assertNull($error->getRetryAfter());
+    }
+
+    public function testHttpRateLimitWithoutApiPayloadKeepsRetryAfter(): void
+    {
+        self::$server->respond(429, '<html>slow down</html>', 0.0, ['Retry-After' => '5']);
+
+        $error = $this->catch(fn () => $this->client->getBalance());
+
+        self::assertInstanceOf(RateLimitException::class, $error);
+        self::assertSame(5, $error->getRetryAfter());
+    }
+
     public function testMissingCodeIsAnApiError(): void
     {
         self::$server->respond(200, ['result' => ['balance' => 1]]);
@@ -291,6 +392,14 @@ final class ErrorTest extends ServerTestCase
             'AML_CHECK_NOT_FOUND' => 30,
             'SERVICE_NOT_AVAILABLE' => 35,
             'INVALID_BANDWIDTH_AMOUNT' => 50,
+            'BULK_NOT_FOUND' => 90,
+            'BULK_EXPIRED' => 91,
+            'BULK_PRICE_CHANGED' => 92,
+            'BULK_TOO_MANY_ITEMS' => 93,
+            'BULK_NO_VALID_ITEMS' => 94,
+            'BULK_RESOURCE_NOT_SUPPORTED' => 95,
+            'PAYLOAD_TOO_LARGE' => 96,
+            'RATE_LIMITED' => 429,
         ], (new ReflectionClass(TronZapException::class))->getConstants());
     }
 

@@ -122,6 +122,12 @@ try {
 - `checkSubscription(id, externalId)` - Статус подписки по id или внешнему id
 - `stopSubscription(id, externalId)` - Остановить подписку
 - `getSubscriptionHistory(page, perPage, status)` - История подписок
+- `bulkCalculate(items, duration)` - Проверить и рассчитать до 10 000 строк массового заказа энергии
+- `bulkCreate(id, externalId, force, maxPriceIncrease, webhookUrl)` - Запустить массовый заказ по расчёту
+- `bulkCheck(id, externalId)` - Статус и прогресс массового заказа
+- `bulkHistory(page, perPage)` - Массовые заказы, новые первыми
+- `bulkReport(id, externalId, status)` - Скачать отчёт массового заказа по адресам в CSV
+- `verifyWebhookSignature(body, signature)` - Проверить заголовок `X-Signature` вебхука массового заказа
 
 Для проверки по hash (`createAmlCheck('hash', ...)`) `address` — это адрес получателя средств в транзакции, а `direction` указывает, на какой стороне транзакции вы: `deposit`, если средства пришли на ваш адрес (`address` — ваш адрес), `withdrawal`, если их отправили вы (`address` — адрес внешнего получателя). Риск оценивается для контрагента: для deposit — для отправителя, для withdrawal — для получателя. Если не передать `direction` для проверки по hash, SDK отправит `deposit`.
 
@@ -152,20 +158,71 @@ $history = $client->getSubscriptionHistory(1, 10, 'active');
 
 Запуск, проверка и остановка возвращают подписку с её `params`, а элементы истории вместо них содержат счётчики использования `transactions_used`, `energy_used` и `total_price`. Подписку с лимитом транзакций остановить нельзя (`CANNOT_STOP_SUBSCRIPTION`).
 
+## Массовые заказы
+
+Покупка энергии на 10 000 адресов одним заказом. `bulkCalculate` проверяет и рассчитывает строки и возвращает расчёт, действительный 10 минут; ничего не списывается. Некорректные строки не валят запрос: они возвращаются в `rejected` с номером строки. `bulkCreate` запускает заказ; каждый адрес списывается в момент обработки, неактивированные адреса пропускаются без списания.
+
+Если цена изменилась после расчёта, `bulkCreate` не запускает заказ и бросает `ApiException` с кодом `BULK_PRICE_CHANGED`. Новый расчёт — в `getResult()`: подтвердите новую сумму и запустите его по `id`.
+
+```php
+use TronZap\Exception\ApiException;
+use TronZap\Exception\TronZapException;
+
+$items = [
+    ['address' => 'TRX_ADDRESS_1', 'amount' => 65000],
+    ['address' => 'TRX_ADDRESS_2', 'amount' => 131000],
+];
+
+try {
+    $calculation = $client->bulkCalculate($items, 1);
+} catch (ApiException $e) {
+    if ($e->getCode() === TronZapException::BULK_NO_VALID_ITEMS) {
+        print_r($e->getResult()['rejected'] ?? []); // Все строки отклонены
+    }
+    throw $e;
+}
+
+echo "Итого: {$calculation['total_amount']} TRX, отклонено: {$calculation['rejected_count']}\n";
+
+try {
+    $order = $client->bulkCreate($calculation['id'], 'order-42', false, null, 'https://example.com/tronzap/bulk');
+} catch (ApiException $e) {
+    if ($e->getCode() !== TronZapException::BULK_PRICE_CHANGED) {
+        throw $e;
+    }
+    $calculation = $e->getResult(); // Новый расчёт: подтвердите новую сумму и запустите его
+    $order = $client->bulkCreate($calculation['id'], 'order-42');
+}
+
+$order = $client->bulkCheck(null, 'order-42'); // Опрашивайте до completed, partial или failed
+
+$csv = $client->bulkReport($order['id']); // row,address,amount,status,reason,charged,transaction_id
+```
+
+С `webhookUrl` API один раз отправит на него `POST`, когда заказ станет финальным. Проверьте заголовок `X-Signature` по сырому телу, прежде чем доверять запросу:
+
+```php
+$body = file_get_contents('php://input');
+if (!$client->verifyWebhookSignature($body, $_SERVER['HTTP_X_SIGNATURE'] ?? '')) {
+    http_response_code(403);
+    exit;
+}
+```
+
 ## Обработка ошибок
 
 SDK использует иерархию исключений для точной обработки ошибок:
 
 ```
 TronZapException
-├── ApiException             — ошибки API (code != 0 в ответе)
+├── ApiException             — ошибки API (code != 0 в ответе), включая HTTP 429 от API
 ├── InvalidRequestException  — неверные аргументы, отклонены до отправки
 ├── NetworkException         — сетевые ошибки
 │   ├── ConnectionException  — невозможно подключиться к серверу
 │   ├── TimeoutException     — превышено время ожидания
 │   └── SslException         — ошибки SSL/TLS
 └── HttpException            — HTTP-ответы с кодом не 2xx
-    ├── RateLimitException   — HTTP 429 Too Many Requests
+    ├── RateLimitException   — HTTP 429 без ответа API, например от прокси
     ├── UnauthorizedException — HTTP 401/403
     └── ServerException      — HTTP 5xx
 ```
@@ -201,6 +258,14 @@ try {
 
     // Укажите его при обращении в поддержку
     echo "ID запроса: {$e->getRequestId()}\n";
+
+    // Данные, которые API вернул вместе с ошибкой, например новый расчёт для BULK_PRICE_CHANGED
+    $result = $e->getResult();
+
+    if ($e->getCode() === TronZapException::RATE_LIMITED) {
+        // Сколько секунд ждать, если API это передал
+        sleep($e->getRetryAfter() ?? 60);
+    }
 
     if ($e->getCode() === TronZapException::INVALID_TRON_ADDRESS) {
         echo "Проверьте формат адреса TRON.\n";
@@ -246,6 +311,14 @@ try {
 | 30  | `AML_CHECK_NOT_FOUND`       | AML-проверка не найдена                                               |
 | 35  | `SERVICE_NOT_AVAILABLE`     | Сервис временно недоступен                                            |
 | 50  | `INVALID_BANDWIDTH_AMOUNT`  | Некорректное количество bandwidth                                     |
+| 90| `BULK_NOT_FOUND` | Массовый заказ не найден |
+| 91| `BULK_EXPIRED` | Расчёт истёк, рассчитайте заново |
+| 92| `BULK_PRICE_CHANGED` | Цена изменилась; новый расчёт в `getResult()` |
+| 93| `BULK_TOO_MANY_ITEMS` | Больше 10 000 строк |
+| 94| `BULK_NO_VALID_ITEMS` | Нет корректных строк; они в `getResult()['rejected']` |
+| 95| `BULK_RESOURCE_NOT_SUPPORTED` | Массово можно заказать только энергию |
+| 96| `PAYLOAD_TOO_LARGE` | Слишком большое тело запроса (HTTP 413) |
+| 429| `RATE_LIMITED` | Слишком много запросов; подождите `getRetryAfter()` секунд, если указано |
 | 500 | `INTERNAL_SERVER_ERROR`     | Внутренняя ошибка сервера — обратитесь в поддержку                    |
 
 ## Разработка

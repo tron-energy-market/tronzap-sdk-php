@@ -12,10 +12,12 @@
  *     export TRONZAP_TRANSACTION_ID=id                 # optional
  *     export TRONZAP_AML_CHECK_ID=id                   # optional
  *     export TRONZAP_SUBSCRIPTION_ID=id                # optional
+ *     export TRONZAP_BULK_ID=id                        # optional
  *     composer install
  *     php examples/basic-usage.php
  *
- * Setting TRONZAP_ALLOW_PURCHASES=1 additionally exercises the endpoints that create transactions and AML checks.
+ * Setting TRONZAP_ALLOW_PURCHASES=1 additionally exercises the endpoints that create transactions, AML checks and a
+ * one-address bulk order.
  * Those DEBIT THE ACCOUNT BALANCE. It is meant for verifying an integration against a development environment, and
  * it also needs TRONZAP_ADDRESS.
  *
@@ -80,6 +82,24 @@ function printTransaction(array $transaction): void
         field($transaction, 'status'),
         field($transaction, 'amount'),
         field($transaction, 'created_at')
+    );
+}
+
+/**
+ * @param array<mixed> $order
+ */
+function printBulkOrder(array $order): void
+{
+    printf(
+        "  %s %s: %s of %s processed, %s delivered, %s skipped, charged %s of %s\n",
+        field($order, 'id'),
+        field($order, 'status'),
+        field($order, 'processed'),
+        field($order, 'total'),
+        field($order, 'delivered'),
+        field($order, 'skipped'),
+        field($order, 'charged_amount'),
+        field($order, 'total_amount')
     );
 }
 
@@ -222,6 +242,19 @@ function main(): int
         }
     });
 
+    $step('bulkHistory', static function () use ($client): void {
+        $history = $client->bulkHistory(1, 3);
+        printf(
+            "  page %s, %d of %s order(s)\n",
+            field($history, 'page'),
+            count(rows($history, 'items')),
+            field($history, 'total')
+        );
+        foreach (rows($history, 'items') as $order) {
+            printBulkOrder($order);
+        }
+    });
+
     $address = env('TRONZAP_ADDRESS');
 
     $optionalStep('getAddressInfo', $address, static function (string $value) use ($client): void {
@@ -272,6 +305,29 @@ function main(): int
         printf("  %s, risk %s\n", field($check, 'status'), $risk === '-' ? 'not scored yet' : $risk);
     });
 
+    $optionalStep('bulkCalculate', $address, static function (string $value) use ($client): void {
+        $calculation = $client->bulkCalculate([
+            ['address' => $value, 'amount' => ENERGY],
+            ['address' => 'not-an-address', 'amount' => ENERGY],
+        ]);
+        printf(
+            "  %s: %s accepted, total %s, expires %s\n",
+            field($calculation, 'id'),
+            field($calculation, 'accepted'),
+            field($calculation, 'total_amount'),
+            field($calculation, 'expires_at')
+        );
+        foreach (rows($calculation, 'rejected') as $row) {
+            printf("  rejected row %s: %s\n", field($row, 'row'), field($row, 'reason'));
+        }
+    });
+
+    $bulkId = env('TRONZAP_BULK_ID');
+    $optionalStep('bulkCheck, bulkReport', $bulkId, static function (string $value) use ($client): void {
+        printBulkOrder($client->bulkCheck($value));
+        echo '  ' . str_replace("\n", "\n  ", trim($client->bulkReport($value))) . "\n";
+    });
+
     $subscriptionId = env('TRONZAP_SUBSCRIPTION_ID');
     $optionalStep('checkSubscription', $subscriptionId, static function (string $value) use ($client): void {
         printSubscription($client->checkSubscription($value));
@@ -313,6 +369,26 @@ function main(): int
         $step('createAmlCheck', static function () use ($client, $address): void {
             $check = $client->createAmlCheck('address', 'TRX', $address);
             printf("  AML check %s is %s\n", field($check, 'id'), field($check, 'status'));
+        });
+
+        $step('bulkCreate, bulkCheck, bulkReport', static function () use ($client, $address, $runId): void {
+            $calculation = $client->bulkCalculate([['address' => $address, 'amount' => ENERGY]]);
+            try {
+                $order = $client->bulkCreate(field($calculation, 'id'), "$runId-bulk");
+            } catch (ApiException $e) {
+                $newCalculation = $e->getResult();
+                if ($e->getCode() !== TronZapException::BULK_PRICE_CHANGED || $newCalculation === null) {
+                    throw $e;
+                }
+                printf("  price changed, new total %s\n", field($newCalculation, 'total_amount'));
+                $order = $client->bulkCreate(field($newCalculation, 'id'), "$runId-bulk");
+            }
+            for ($i = 0; $i < 10 && field($order, 'status') === 'processing'; $i++) {
+                sleep(3);
+                $order = $client->bulkCheck(null, "$runId-bulk");
+            }
+            printBulkOrder($order);
+            echo '  ' . str_replace("\n", "\n  ", trim($client->bulkReport(field($order, 'id')))) . "\n";
         });
 
         $plan = env('TRONZAP_SUBSCRIPTION_PLAN');

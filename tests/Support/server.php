@@ -65,11 +65,22 @@ function handle($conn, string $stateDir): void
     $status = is_array($response) && is_int($response['status'] ?? null) ? $response['status'] : 500;
     $payload = is_array($response) && is_string($response['body'] ?? null) ? $response['body'] : '';
     $delay = is_array($response) && is_numeric($response['delay'] ?? null) ? (float) $response['delay'] : 0.0;
+    $headers = ['Content-Type' => 'application/json'];
+    if (is_array($response) && is_array($response['headers'] ?? null)) {
+        foreach ($response['headers'] as $name => $value) {
+            $headers[(string) $name] = is_scalar($value) ? (string) $value : '';
+        }
+    }
+    $headerLines = '';
+    foreach ($headers as $name => $value) {
+        $headerLines .= "$name: $value\r\n";
+    }
 
     usleep((int) ($delay * 1000000));
     @fwrite($conn, sprintf(
-        "HTTP/1.1 %d Status\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s",
+        "HTTP/1.1 %d Status\r\n%sContent-Length: %d\r\nConnection: close\r\n\r\n%s",
         $status,
+        $headerLines,
         strlen($payload),
         $payload
     ));

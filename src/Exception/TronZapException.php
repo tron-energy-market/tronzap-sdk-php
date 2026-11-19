@@ -50,4 +50,28 @@ class TronZapException extends \Exception
 
     // Invalid bandwidth amount - Ensure the requested bandwidth amount is valid.
     public const INVALID_BANDWIDTH_AMOUNT = 50;
+
+    // Bulk order not found - Check the order ID or external ID. A calculation that was never started is not an order.
+    public const BULK_NOT_FOUND = 90;
+
+    // Bulk calculation expired - Call bulkCalculate() again; a calculation is valid for 10 minutes.
+    public const BULK_EXPIRED = 91;
+
+    // Price changed - The new calculation is in getResult(); to start the order, call bulkCreate() with its id.
+    public const BULK_PRICE_CHANGED = 92;
+
+    // Too many items - Send at most 10 000 rows in one calculation.
+    public const BULK_TOO_MANY_ITEMS = 93;
+
+    // No valid items - Fix the rows listed in getResult()['rejected'].
+    public const BULK_NO_VALID_ITEMS = 94;
+
+    // Resource not supported for bulk orders - Only energy can be ordered in bulk.
+    public const BULK_RESOURCE_NOT_SUPPORTED = 95;
+
+    // Request body too large (HTTP 413) - Send fewer rows in one calculation.
+    public const PAYLOAD_TOO_LARGE = 96;
+
+    // Too many requests (HTTP 429) - Wait getRetryAfter() seconds, when given, and retry.
+    public const RATE_LIMITED = 429;
 }

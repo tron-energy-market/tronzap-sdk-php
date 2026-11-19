@@ -540,6 +540,143 @@ class Client
     }
 
     /**
+     * Validate and price the rows of a bulk energy order
+     *
+     * Creates a calculation valid for 10 minutes; nothing is charged. Invalid rows do not fail the request: they are
+     * returned in "rejected" with their row number, starting at 1. When no row is valid, the API answers
+     * BULK_NO_VALID_ITEMS and the rejected rows are in ApiException::getResult().
+     *
+     * @param array<array{address: string, amount: int}> $items Rows, at most 10 000
+     * @param int $duration Rental period in hours, one of the periods available to you (see getServices())
+     * @return array<mixed> Calculation: id, total_amount, accepted, rejected_count, rejected, expires_at
+     * @throws InvalidRequestException if items is empty
+     * @throws TronZapException
+     */
+    public function bulkCalculate(array $items, int $duration = 1): array
+    {
+        if ($items === []) {
+            throw new InvalidRequestException('items is required');
+        }
+
+        return $this->request('POST', '/v1/bulk/calculate', [
+            'resource' => 'energy',
+            'duration' => self::atLeastOne($duration, 1),
+            'items' => array_values($items)
+        ]);
+    }
+
+    /**
+     * Start a bulk order from a calculation
+     *
+     * Nothing is charged here: each address is charged when it is processed. If the price of any row changed since
+     * the calculation, the order is not started: the API answers BULK_PRICE_CHANGED and the new calculation is in
+     * ApiException::getResult(); call bulkCreate() with its id to start at the new total. Repeating a call with the
+     * same id or externalId returns the order already started.
+     *
+     * @param string $id Calculation ID from bulkCalculate()
+     * @param string|null $externalId Your order ID, unique per account
+     * @param bool $force Buy even if the price rises while the order runs, within $maxPriceIncrease
+     * @param int|null $maxPriceIncrease Allowed price increase in %, 0-100, used only with $force. API default is 20
+     * @param string|null $webhookUrl Public https URL called once when the order becomes final
+     * @return array<mixed> The order, same fields as bulkCheck()
+     * @throws InvalidRequestException if id is empty
+     * @throws TronZapException
+     */
+    public function bulkCreate(
+        string $id,
+        ?string $externalId = null,
+        bool $force = false,
+        ?int $maxPriceIncrease = null,
+        ?string $webhookUrl = null
+    ): array {
+        self::requireValue($id, 'id');
+
+        $params = ['id' => $id];
+        if ($force) {
+            $params['force'] = true;
+        }
+        if ($maxPriceIncrease !== null) {
+            $params['max_price_increase'] = $maxPriceIncrease;
+        }
+        if ($webhookUrl !== null && $webhookUrl !== '') {
+            $params['webhook_url'] = $webhookUrl;
+        }
+
+        return $this->request('POST', '/v1/bulk/create', self::withExternalId($params, $externalId));
+    }
+
+    /**
+     * Get the status and progress counters of a bulk order
+     *
+     * @param string|null $id Order ID
+     * @param string|null $externalId Your order ID from bulkCreate()
+     * @return array<mixed> Order: status, total, processed, delivered, failed, in_review, skipped, charged_amount, ...
+     * @throws InvalidRequestException if both id and externalId are empty
+     * @throws TronZapException
+     */
+    public function bulkCheck(?string $id = null, ?string $externalId = null): array
+    {
+        return $this->request('POST', '/v1/bulk/check', self::idParams($id, $externalId));
+    }
+
+    /**
+     * List bulk orders, newest first
+     *
+     * @param int $page Page number
+     * @param int $perPage Items per page, at most 50
+     * @return array<mixed> page, per_page, total and items with the same fields as bulkCheck()
+     * @throws TronZapException
+     */
+    public function bulkHistory(int $page = 1, int $perPage = 10): array
+    {
+        return $this->request('POST', '/v1/bulk/history', [
+            'page' => self::atLeastOne($page, 1),
+            'per_page' => self::atLeastOne($perPage, 10)
+        ]);
+    }
+
+    /**
+     * Download the per-address report of a bulk order as CSV
+     *
+     * Columns: row, address, amount, status, reason, charged, transaction_id. Rows rejected by the calculation are
+     * not included.
+     *
+     * @param string|null $id Order ID
+     * @param string|null $externalId Your order ID from bulkCreate()
+     * @param string|null $status Only rows with this result: delivered, failed, in_review, skipped or pending
+     * @return string CSV with a header line
+     * @throws InvalidRequestException if both id and externalId are empty
+     * @throws TronZapException
+     */
+    public function bulkReport(?string $id = null, ?string $externalId = null, ?string $status = null): string
+    {
+        $params = self::idParams($id, $externalId);
+        if ($status !== null && $status !== '') {
+            $params['status'] = $status;
+        }
+
+        [$httpCode, $body, $headers] = $this->send('POST', '/v1/bulk/report', $params);
+        $isCsv = stripos($headers['content-type'] ?? '', 'text/csv') === 0;
+        if ($isCsv && $httpCode >= 200 && $httpCode < 300) {
+            return $body;
+        }
+
+        self::decode($httpCode, $body, $headers);
+        throw new ServerException('Expected a CSV report', $httpCode, $body);
+    }
+
+    /**
+     * Check the X-Signature header of a bulk order webhook
+     *
+     * @param string $body Raw request body, exactly as received
+     * @param string $signature Value of the X-Signature header
+     */
+    public function verifyWebhookSignature(string $body, string $signature): bool
+    {
+        return hash_equals(hash('sha256', $body . $this->apiSecret), strtolower(trim($signature)));
+    }
+
+    /**
      * Make an API request
      *
      * @param string $method HTTP method
@@ -553,6 +690,19 @@ class Client
      * @throws TronZapException on any other error
      */
     public function request(string $method, string $endpoint, array $params): array
+    {
+        [$httpCode, $body, $headers] = $this->send($method, $endpoint, $params);
+
+        return self::decode($httpCode, $body, $headers);
+    }
+
+    /**
+     * @param array<mixed> $params
+     * @return array{int, string, array<string, string>} HTTP status, body and lower-cased response headers
+     * @throws InvalidRequestException
+     * @throws NetworkException
+     */
+    private function send(string $method, string $endpoint, array $params): array
     {
         if ($method === '') {
             throw new InvalidRequestException('method is required');
@@ -584,6 +734,16 @@ class Client
         if ($this->caBundle !== null) {
             $options[CURLOPT_CAINFO] = $this->caBundle;
         }
+        $headers = [];
+        $options[CURLOPT_HEADERFUNCTION] = static function ($ch, string $line) use (&$headers): int {
+            if (strncasecmp($line, 'HTTP/', 5) === 0) {
+                $headers = [];
+            } elseif (strpos($line, ':') !== false) {
+                [$name, $value] = explode(':', $line, 2);
+                $headers[strtolower(trim($name))] = trim($value);
+            }
+            return strlen($line);
+        };
         curl_setopt_array($ch, $options);
 
         $response = curl_exec($ch);
@@ -596,18 +756,30 @@ class Client
             throw self::buildNetworkException($curlErrno, $curlError);
         }
 
+        return [$httpCode, $response, $headers];
+    }
+
+    /**
+     * @param array<string, string> $headers
+     * @return array<mixed>
+     * @throws ApiException
+     * @throws HttpException
+     */
+    private static function decode(int $httpCode, string $response, array $headers): array
+    {
         // 2. JSON parsing
         $responseData = json_decode($response, true);
         $isJson = json_last_error() === JSON_ERROR_NONE;
 
         // 3. API-level errors (valid JSON + code !== 0, regardless of HTTP status)
         if ($isJson && (!is_array($responseData) || ($responseData['code'] ?? null) !== 0)) {
-            throw self::buildApiException(is_array($responseData) ? $responseData : [], $httpCode);
+            $data = is_array($responseData) ? $responseData : [];
+            throw self::buildApiException($data, $httpCode, self::retryAfter($headers, $data));
         }
 
         // 4. HTTP-level errors (non-2xx: invalid JSON or valid JSON with code=0)
         if ($httpCode < 200 || $httpCode >= 300) {
-            throw self::buildHttpException($httpCode, $response);
+            throw self::buildHttpException($httpCode, $response, self::retryAfter($headers, []));
         }
 
         // 5. HTTP 2xx but invalid JSON
@@ -674,20 +846,44 @@ class Client
     /**
      * @param array<mixed> $data
      */
-    private static function buildApiException(array $data, int $httpCode): ApiException
+    private static function buildApiException(array $data, int $httpCode, ?int $retryAfter): ApiException
     {
         $code = $data['code'] ?? null;
         $error = $data['error'] ?? null;
         $key = $data['key'] ?? null;
         $requestId = $data['request_id'] ?? null;
+        $result = $data['result'] ?? null;
 
         return new ApiException(
             is_string($error) && $error !== '' ? $error : 'Unknown API error',
             is_int($code) ? $code : 1,
             is_string($key) ? $key : null,
             is_string($requestId) ? $requestId : null,
-            $httpCode
+            $httpCode,
+            is_array($result) ? $result : null,
+            $retryAfter
         );
+    }
+
+    /**
+     * @param array<string, string> $headers
+     * @param array<mixed> $data
+     */
+    private static function retryAfter(array $headers, array $data): ?int
+    {
+        $header = $headers['retry-after'] ?? '';
+        if (preg_match('/^\d+$/', $header) === 1) {
+            return (int) $header;
+        }
+        if ($header !== '') {
+            $time = strtotime($header);
+            if ($time !== false) {
+                return max(0, $time - time());
+            }
+        }
+
+        $body = $data['retry_after'] ?? null;
+        return is_int($body) && $body >= 0 ? $body : null;
     }
 
     private static function buildNetworkException(int $errno, string $error): NetworkException
@@ -735,10 +931,10 @@ class Client
         return new NetworkException($error, $errno);
     }
 
-    private static function buildHttpException(int $httpCode, string $body): HttpException
+    private static function buildHttpException(int $httpCode, string $body, ?int $retryAfter): HttpException
     {
         if ($httpCode === 429) {
-            return new RateLimitException('Too many requests', $httpCode, $body);
+            return new RateLimitException('Too many requests', $httpCode, $body, $retryAfter);
         }
         if ($httpCode === 401 || $httpCode === 403) {
             return new UnauthorizedException('Unauthorized', $httpCode, $body);

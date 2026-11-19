@@ -122,6 +122,12 @@ try {
 - `checkSubscription(id, externalId)` - Consulta el estado de una suscripción, por id o id externo
 - `stopSubscription(id, externalId)` - Detiene una suscripción
 - `getSubscriptionHistory(page, perPage, status)` - Obtiene historial de suscripciones
+- `bulkCalculate(items, duration)` - Valida y calcula hasta 10 000 filas de un pedido masivo de energía
+- `bulkCreate(id, externalId, force, maxPriceIncrease, webhookUrl)` - Inicia un pedido masivo a partir de un cálculo
+- `bulkCheck(id, externalId)` - Obtiene el estado y el progreso de un pedido masivo
+- `bulkHistory(page, perPage)` - Obtiene los pedidos masivos, los más recientes primero
+- `bulkReport(id, externalId, status)` - Descarga el informe por dirección de un pedido masivo en CSV
+- `verifyWebhookSignature(body, signature)` - Verifica la cabecera `X-Signature` del webhook de un pedido masivo
 
 En una verificación por hash (`createAmlCheck('hash', ...)`), `address` es la dirección del destinatario de la transacción, donde se recibieron los fondos, y `direction` indica en qué lado estás: `deposit` si los fondos llegaron a tu dirección (`address` es tu dirección), `withdrawal` si los enviaste tú (`address` es la dirección del destinatario externo). El riesgo se calcula para la contraparte: el remitente en un deposit, el destinatario en un withdrawal. Si omites `direction` en una verificación por hash, el SDK envía `deposit`.
 
@@ -152,20 +158,71 @@ $history = $client->getSubscriptionHistory(1, 10, 'active');
 
 Iniciar, consultar y detener devuelven la suscripción con sus `params`; los elementos del historial traen en su lugar los contadores de uso `transactions_used`, `energy_used` y `total_price`. Una suscripción con límite de transacciones no se puede detener (`CANNOT_STOP_SUBSCRIPTION`).
 
+## Pedidos masivos
+
+Compra energía para hasta 10 000 direcciones en un solo pedido. `bulkCalculate` valida y calcula las filas y devuelve un cálculo válido durante 10 minutos; no se cobra nada. Las filas inválidas no hacen fallar la solicitud: se devuelven en `rejected` con su número de fila. `bulkCreate` inicia el pedido; cada dirección se cobra al procesarse, y las direcciones no activadas se omiten sin cobro.
+
+Si el precio cambió desde el cálculo, `bulkCreate` no inicia el pedido y lanza `ApiException` con el código `BULK_PRICE_CHANGED`. El nuevo cálculo está en `getResult()`: confirma el nuevo total e inícialo con su `id`.
+
+```php
+use TronZap\Exception\ApiException;
+use TronZap\Exception\TronZapException;
+
+$items = [
+    ['address' => 'TRX_ADDRESS_1', 'amount' => 65000],
+    ['address' => 'TRX_ADDRESS_2', 'amount' => 131000],
+];
+
+try {
+    $calculation = $client->bulkCalculate($items, 1);
+} catch (ApiException $e) {
+    if ($e->getCode() === TronZapException::BULK_NO_VALID_ITEMS) {
+        print_r($e->getResult()['rejected'] ?? []); // Todas las filas fueron rechazadas
+    }
+    throw $e;
+}
+
+echo "Total: {$calculation['total_amount']} TRX, rechazadas: {$calculation['rejected_count']}\n";
+
+try {
+    $order = $client->bulkCreate($calculation['id'], 'order-42', false, null, 'https://example.com/tronzap/bulk');
+} catch (ApiException $e) {
+    if ($e->getCode() !== TronZapException::BULK_PRICE_CHANGED) {
+        throw $e;
+    }
+    $calculation = $e->getResult(); // Nuevo cálculo: confirma el nuevo total e inícialo
+    $order = $client->bulkCreate($calculation['id'], 'order-42');
+}
+
+$order = $client->bulkCheck(null, 'order-42'); // Consulta hasta completed, partial o failed
+
+$csv = $client->bulkReport($order['id']); // row,address,amount,status,reason,charged,transaction_id
+```
+
+Con `webhookUrl`, la API envía un único `POST` cuando el pedido pasa a un estado final. Verifica su cabecera `X-Signature` con el cuerpo sin procesar antes de confiar en él:
+
+```php
+$body = file_get_contents('php://input');
+if (!$client->verifyWebhookSignature($body, $_SERVER['HTTP_X_SIGNATURE'] ?? '')) {
+    http_response_code(403);
+    exit;
+}
+```
+
 ## Gestión de errores
 
 El SDK utiliza una jerarquía de excepciones para un manejo preciso de errores:
 
 ```
 TronZapException
-├── ApiException             — errores a nivel de API (code != 0 en la respuesta)
+├── ApiException             — errores a nivel de API (code != 0 en la respuesta), incluido HTTP 429 de la API
 ├── InvalidRequestException  — argumentos inválidos, rechazados antes de enviar
 ├── NetworkException         — errores de red/conectividad
 │   ├── ConnectionException  — no se pudo conectar al servidor
 │   ├── TimeoutException     — tiempo de espera agotado
 │   └── SslException         — errores SSL/TLS
 └── HttpException            — respuestas HTTP no 2xx
-    ├── RateLimitException   — HTTP 429 Too Many Requests
+    ├── RateLimitException   — HTTP 429 sin respuesta de la API, p. ej. de un proxy
     ├── UnauthorizedException — HTTP 401/403
     └── ServerException      — errores HTTP 5xx
 ```
@@ -201,6 +258,14 @@ try {
 
     // Indícalo al contactar con soporte
     echo "ID de la solicitud: {$e->getRequestId()}\n";
+
+    // Datos que la API envió con el error, p. ej. el nuevo cálculo para BULK_PRICE_CHANGED
+    $result = $e->getResult();
+
+    if ($e->getCode() === TronZapException::RATE_LIMITED) {
+        // Segundos de espera, si la API los envió
+        sleep($e->getRetryAfter() ?? 60);
+    }
 
     if ($e->getCode() === TronZapException::INVALID_TRON_ADDRESS) {
         echo "Revisa el formato de la dirección TRON.\n";
@@ -246,6 +311,14 @@ try {
 | 30     | `AML_CHECK_NOT_FOUND`       | Verificación AML no encontrada                                           |
 | 35     | `SERVICE_NOT_AVAILABLE`     | Servicio no disponible                                                   |
 | 50     | `INVALID_BANDWIDTH_AMOUNT`  | Cantidad de ancho de banda inválida                                      |
+| 90   | `BULK_NOT_FOUND` | Pedido masivo no encontrado |
+| 91   | `BULK_EXPIRED` | El cálculo expiró, calcula de nuevo |
+| 92   | `BULK_PRICE_CHANGED` | El precio cambió; el nuevo cálculo está en `getResult()` |
+| 93   | `BULK_TOO_MANY_ITEMS` | Más de 10 000 filas |
+| 94   | `BULK_NO_VALID_ITEMS` | No hay filas válidas; están en `getResult()['rejected']` |
+| 95   | `BULK_RESOURCE_NOT_SUPPORTED` | Solo se puede pedir energía de forma masiva |
+| 96   | `PAYLOAD_TOO_LARGE` | Cuerpo de la solicitud demasiado grande (HTTP 413) |
+| 429  | `RATE_LIMITED` | Demasiadas solicitudes; espera `getRetryAfter()` segundos si se indica |
 | 500    | `INTERNAL_SERVER_ERROR`     | Error interno del servidor — contacta a soporte                          |
 
 ## Desarrollo

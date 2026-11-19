@@ -124,6 +124,12 @@ try {
 - `checkSubscription(id, externalId)` - Get status of a subscription, by id or external id
 - `stopSubscription(id, externalId)` - Stop a subscription
 - `getSubscriptionHistory(page, perPage, status)` - Get subscription history
+- `bulkCalculate(items, duration)` - Validate and price up to 10 000 rows of a bulk energy order
+- `bulkCreate(id, externalId, force, maxPriceIncrease, webhookUrl)` - Start a bulk order from a calculation
+- `bulkCheck(id, externalId)` - Get status and progress of a bulk order
+- `bulkHistory(page, perPage)` - Get bulk orders, newest first
+- `bulkReport(id, externalId, status)` - Download the per-address report of a bulk order as CSV
+- `verifyWebhookSignature(body, signature)` - Check the `X-Signature` header of a bulk order webhook
 
 For a hash check (`createAmlCheck('hash', ...)`), `address` is the recipient address of the transaction, where the funds were received, and `direction` says which side you are on: `deposit` if the funds were sent to your address (`address` is your address), `withdrawal` if you sent them (`address` is the external recipient's address). The risk is scored for the counterparty: the sender of a deposit, the recipient of a withdrawal. When you omit `direction` for a hash check, the SDK sends `deposit`.
 
@@ -154,20 +160,71 @@ $history = $client->getSubscriptionHistory(1, 10, 'active');
 
 Start, check and stop return the subscription with its `params`; the history items carry the usage counters `transactions_used`, `energy_used` and `total_price` instead. A subscription with a transactions limit cannot be stopped (`CANNOT_STOP_SUBSCRIPTION`).
 
+## Bulk Orders
+
+Buy energy for up to 10 000 addresses in one order. `bulkCalculate` validates and prices the rows and returns a calculation valid for 10 minutes; nothing is charged. Invalid rows do not fail the request: they come back in `rejected` with their row number. `bulkCreate` starts the order; each address is charged when it is processed, and inactive addresses are skipped without a charge.
+
+If the price changed since the calculation, `bulkCreate` does not start the order and throws `ApiException` with code `BULK_PRICE_CHANGED`. The new calculation is in `getResult()`: confirm the new total and start it with its `id`.
+
+```php
+use TronZap\Exception\ApiException;
+use TronZap\Exception\TronZapException;
+
+$items = [
+    ['address' => 'TRX_ADDRESS_1', 'amount' => 65000],
+    ['address' => 'TRX_ADDRESS_2', 'amount' => 131000],
+];
+
+try {
+    $calculation = $client->bulkCalculate($items, 1);
+} catch (ApiException $e) {
+    if ($e->getCode() === TronZapException::BULK_NO_VALID_ITEMS) {
+        print_r($e->getResult()['rejected'] ?? []); // Every row was rejected
+    }
+    throw $e;
+}
+
+echo "Total: {$calculation['total_amount']} TRX, rejected: {$calculation['rejected_count']}\n";
+
+try {
+    $order = $client->bulkCreate($calculation['id'], 'order-42', false, null, 'https://example.com/tronzap/bulk');
+} catch (ApiException $e) {
+    if ($e->getCode() !== TronZapException::BULK_PRICE_CHANGED) {
+        throw $e;
+    }
+    $calculation = $e->getResult(); // New calculation: confirm the new total, then start it
+    $order = $client->bulkCreate($calculation['id'], 'order-42');
+}
+
+$order = $client->bulkCheck(null, 'order-42'); // Poll until completed, partial or failed
+
+$csv = $client->bulkReport($order['id']); // row,address,amount,status,reason,charged,transaction_id
+```
+
+With `webhookUrl`, the API sends one `POST` to it when the order becomes final. Check its `X-Signature` header against the raw body before trusting it:
+
+```php
+$body = file_get_contents('php://input');
+if (!$client->verifyWebhookSignature($body, $_SERVER['HTTP_X_SIGNATURE'] ?? '')) {
+    http_response_code(403);
+    exit;
+}
+```
+
 ## Error Handling
 
 The SDK uses a hierarchy of exceptions for precise error handling:
 
 ```
 TronZapException
-├── ApiException             — API-level errors (response code != 0)
+├── ApiException             — API-level errors (response code != 0), including HTTP 429 from the API
 ├── InvalidRequestException  — Invalid arguments, rejected before sending
 ├── NetworkException         — Network/connectivity errors
 │   ├── ConnectionException  — Could not connect to server
 │   ├── TimeoutException     — Request timed out
 │   └── SslException         — SSL/TLS errors
 └── HttpException            — HTTP non-2xx responses
-    ├── RateLimitException   — HTTP 429 Too Many Requests
+    ├── RateLimitException   — HTTP 429 without an API payload, e.g. from a proxy
     ├── UnauthorizedException — HTTP 401/403
     └── ServerException      — HTTP 5xx errors
 ```
@@ -203,6 +260,14 @@ try {
 
     // Quote it when contacting support
     echo "Request ID: {$e->getRequestId()}\n";
+
+    // Data the API sent with the error, e.g. the new calculation for BULK_PRICE_CHANGED
+    $result = $e->getResult();
+
+    if ($e->getCode() === TronZapException::RATE_LIMITED) {
+        // Seconds to wait, when the API sent them
+        sleep($e->getRetryAfter() ?? 60);
+    }
 
     if ($e->getCode() === TronZapException::INVALID_TRON_ADDRESS) {
         echo "Check the TRON address format.\n";
@@ -248,6 +313,14 @@ try {
 | 30   | `AML_CHECK_NOT_FOUND`       | AML check not found                                                     |
 | 35   | `SERVICE_NOT_AVAILABLE`     | Service not available                                                   |
 | 50   | `INVALID_BANDWIDTH_AMOUNT`  | Invalid bandwidth amount                                                |
+| 90   | `BULK_NOT_FOUND`            | Bulk order not found                                                    |
+| 91   | `BULK_EXPIRED`              | Bulk calculation expired, calculate again                               |
+| 92   | `BULK_PRICE_CHANGED`        | Price changed; the new calculation is in `getResult()`                  |
+| 93   | `BULK_TOO_MANY_ITEMS`       | More than 10 000 rows                                                   |
+| 94   | `BULK_NO_VALID_ITEMS`       | No valid rows; they are in `getResult()['rejected']`                    |
+| 95   | `BULK_RESOURCE_NOT_SUPPORTED` | Only energy can be ordered in bulk                                    |
+| 96   | `PAYLOAD_TOO_LARGE`         | Request body too large (HTTP 413)                                       |
+| 429  | `RATE_LIMITED`              | Too many requests; wait `getRetryAfter()` seconds when given            |
 | 500  | `INTERNAL_SERVER_ERROR`     | Internal server error – Contact support                                 |
 
 ## Development

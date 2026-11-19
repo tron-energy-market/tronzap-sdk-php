@@ -58,13 +58,16 @@ final class ApiServer
         return new self('https', $host, $certificate);
     }
 
-    /** @param mixed $body */
-    public function respond(int $status, $body, float $delay = 0.0): void
+    /**
+     * @param mixed $body
+     * @param array<string, string> $headers
+     */
+    public function respond(int $status, $body, float $delay = 0.0, array $headers = []): void
     {
         $payload = is_string($body) ? $body : json_encode($body);
         file_put_contents(
             "$this->stateDir/response",
-            json_encode(['status' => $status, 'body' => $payload, 'delay' => $delay])
+            json_encode(['status' => $status, 'body' => $payload, 'delay' => $delay, 'headers' => $headers])
         );
     }
 
